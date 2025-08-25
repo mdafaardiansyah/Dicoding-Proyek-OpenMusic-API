@@ -4,70 +4,43 @@
  */
 
 exports.up = (pgm) => {
-  // Membuat tabel songs
-  pgm.createTable('songs', {
-    id: {
-      type: 'VARCHAR(50)',
-      primaryKey: true,
-      comment: 'Primary key untuk tabel songs, menggunakan nanoid',
-    },
-    title: {
-      type: 'TEXT',
-      notNull: true,
-      comment: 'Judul lagu, wajib diisi',
-    },
-    year: {
-      type: 'INTEGER',
-      notNull: true,
-      comment: 'Tahun rilis lagu, wajib diisi',
-    },
-    genre: {
-      type: 'TEXT',
-      notNull: true,
-      comment: 'Genre lagu, wajib diisi',
-    },
-    performer: {
-      type: 'TEXT',
-      notNull: true,
-      comment: 'Penyanyi/performer lagu, wajib diisi',
-    },
-    duration: {
-      type: 'INTEGER',
-      comment: 'Durasi lagu dalam detik, opsional',
-    },
-    album_id: {
-      type: 'VARCHAR(50)',
-      comment: 'Foreign key ke tabel albums, opsional',
-    },
-    created_at: {
-      type: 'TIMESTAMP',
-      notNull: true,
-      default: pgm.func('current_timestamp'),
-      comment: 'Waktu pembuatan record',
-    },
-    updated_at: {
-      type: 'TIMESTAMP',
-      notNull: true,
-      default: pgm.func('current_timestamp'),
-      comment: 'Waktu update terakhir record',
-    },
-  });
+  // Membuat tabel songs dengan IF NOT EXISTS menggunakan SQL raw
+  pgm.sql(`
+    CREATE TABLE IF NOT EXISTS "songs" (
+      "id" VARCHAR(50) PRIMARY KEY,
+      "title" TEXT NOT NULL,
+      "year" INTEGER NOT NULL,
+      "genre" TEXT NOT NULL,
+      "performer" TEXT NOT NULL,
+      "duration" INTEGER,
+      "album_id" VARCHAR(50),
+      "created_at" TIMESTAMP DEFAULT current_timestamp NOT NULL,
+      "updated_at" TIMESTAMP DEFAULT current_timestamp NOT NULL,
+      CONSTRAINT fk_songs_album_id FOREIGN KEY (album_id) 
+        REFERENCES albums(id) 
+        ON DELETE SET NULL 
+        ON UPDATE CASCADE
+    );
+  `);
 
-  // Menambahkan foreign key constraint ke tabel albums
-  pgm.addConstraint('songs', 'fk_songs.album_id_albums.id', {
-    foreignKeys: {
-      columns: 'album_id',
-      references: 'albums(id)',
-      onDelete: 'SET NULL', // Jika album dihapus, album_id di songs menjadi NULL
-      onUpdate: 'CASCADE', // Jika id album diupdate, album_id di songs ikut terupdate
-    },
-  });
+  // Menambahkan komentar pada kolom
+  pgm.sql(`
+    COMMENT ON COLUMN "songs"."id" IS 'Primary key untuk tabel songs, menggunakan nanoid';
+    COMMENT ON COLUMN "songs"."title" IS 'Judul lagu, wajib diisi';
+    COMMENT ON COLUMN "songs"."year" IS 'Tahun rilis lagu, wajib diisi';
+    COMMENT ON COLUMN "songs"."genre" IS 'Genre lagu, wajib diisi';
+    COMMENT ON COLUMN "songs"."performer" IS 'Penyanyi/performer lagu, wajib diisi';
+    COMMENT ON COLUMN "songs"."duration" IS 'Durasi lagu dalam detik, opsional';
+    COMMENT ON COLUMN "songs"."album_id" IS 'Foreign key ke tabel albums, opsional';
+    COMMENT ON COLUMN "songs"."created_at" IS 'Waktu pembuatan record';
+    COMMENT ON COLUMN "songs"."updated_at" IS 'Waktu update terakhir record';
+  `);
 
   // Menambahkan index untuk performa query
-  pgm.createIndex('songs', 'title');
-  pgm.createIndex('songs', 'performer');
-  pgm.createIndex('songs', 'album_id');
-  pgm.createIndex('songs', 'genre');
+  pgm.sql('CREATE INDEX IF NOT EXISTS idx_songs_title ON songs(title);');
+  pgm.sql('CREATE INDEX IF NOT EXISTS idx_songs_performer ON songs(performer);');
+  pgm.sql('CREATE INDEX IF NOT EXISTS idx_songs_album_id ON songs(album_id);');
+  pgm.sql('CREATE INDEX IF NOT EXISTS idx_songs_genre ON songs(genre);');
 };
 
 exports.down = (pgm) => {
