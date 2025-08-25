@@ -4,40 +4,29 @@
  */
 
 exports.up = (pgm) => {
-  // Membuat tabel albums
-  pgm.createTable('albums', {
-    id: {
-      type: 'VARCHAR(50)',
-      primaryKey: true,
-      comment: 'Primary key untuk tabel albums, menggunakan nanoid',
-    },
-    name: {
-      type: 'TEXT',
-      notNull: true,
-      comment: 'Nama album, wajib diisi',
-    },
-    year: {
-      type: 'INTEGER',
-      notNull: true,
-      comment: 'Tahun rilis album, wajib diisi',
-    },
-    created_at: {
-      type: 'TIMESTAMP',
-      notNull: true,
-      default: pgm.func('current_timestamp'),
-      comment: 'Waktu pembuatan record',
-    },
-    updated_at: {
-      type: 'TIMESTAMP',
-      notNull: true,
-      default: pgm.func('current_timestamp'),
-      comment: 'Waktu update terakhir record',
-    },
-  });
+  // Membuat tabel albums dengan IF NOT EXISTS menggunakan SQL raw
+  pgm.sql(`
+    CREATE TABLE IF NOT EXISTS "albums" (
+      "id" VARCHAR(50) PRIMARY KEY,
+      "name" TEXT NOT NULL,
+      "year" INTEGER NOT NULL,
+      "created_at" TIMESTAMP DEFAULT current_timestamp NOT NULL,
+      "updated_at" TIMESTAMP DEFAULT current_timestamp NOT NULL
+    );
+  `);
+
+  // Menambahkan komentar pada kolom
+  pgm.sql(`
+    COMMENT ON COLUMN "albums"."id" IS 'Primary key untuk tabel albums, menggunakan nanoid';
+    COMMENT ON COLUMN "albums"."name" IS 'Nama album, wajib diisi';
+    COMMENT ON COLUMN "albums"."year" IS 'Tahun rilis album, wajib diisi';
+    COMMENT ON COLUMN "albums"."created_at" IS 'Waktu pembuatan record';
+    COMMENT ON COLUMN "albums"."updated_at" IS 'Waktu update terakhir record';
+  `);
 
   // Menambahkan index untuk performa query
-  pgm.createIndex('albums', 'name');
-  pgm.createIndex('albums', 'year');
+  pgm.sql('CREATE INDEX IF NOT EXISTS idx_albums_name ON albums(name);');
+  pgm.sql('CREATE INDEX IF NOT EXISTS idx_albums_year ON albums(year);');
 };
 
 exports.down = (pgm) => {
