@@ -1,0 +1,42 @@
+{
+  "name": "openmusic-api-v1",
+  "version": "1.0.0",
+  "description": "OpenMusic API versi 1 - Backend service untuk aplikasi pemutar musik",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "start:dev": "nodemon src/server.js",
+    "migrate": "node-pg-migrate",
+    "migrate:up": "node-pg-migrate up",
+    "migrate:down": "node-pg-migrate down",
+    "migrate:create": "node-pg-migrate create",
+    "db:setup": "node database/setup-database.js",
+    "db:reset": "node database/reset-database.js",
+    "db:test": "node database/test-database.js",
+    "lint": "eslint ./src"
+  },
+  "dependencies": {
+    "@hapi/hapi": "^21.3.2",
+    "@hapi/joi": "^17.1.1",
+    "auto-bind": "^4.0.0",
+    "dotenv": "^16.3.1",
+    "nanoid": "^4.0.2",
+    "node-pg-migrate": "^6.2.2",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.10.2",
+    "eslint": "^8.57.0",
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "openmusic",
+    "api",
+    "hapi",
+    "postgresql",
+    "dicoding",
+    "backend"
+  ],
+  "author": "OpenMusic API Developer",
+  "license": "MIT"
+}
