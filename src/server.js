@@ -6,16 +6,35 @@
 require('dotenv').config();
 
 const Hapi = require('@hapi/hapi');
+const Jwt = require('@hapi/jwt');
 
 // Import services
 const { AlbumsService, SongsService } = require('./services');
+const UsersService = require('./services/UsersService');
+const AuthenticationsService = require('./services/AuthenticationsService');
+const PlaylistsService = require('./services/PlaylistsService');
+const CollaborationsService = require('./services/CollaborationsService');
+
+// Import tokenize
+const TokenManager = require('./tokenize/TokenManager');
 
 // Import validators
-const { AlbumsValidator, SongsValidator } = require('./validator');
+const {
+  AlbumsValidator,
+  SongsValidator,
+  UsersValidator,
+  AuthenticationsValidator,
+  PlaylistsValidator,
+  CollaborationsValidator,
+} = require('./validator');
 
 // Import API plugins
 const albums = require('./api/albums');
 const songs = require('./api/songs');
+const users = require('./api/users');
+const authentications = require('./api/authentications');
+const playlists = require('./api/playlists');
+const collaborations = require('./api/collaborations');
 
 // Import exceptions
 const ClientError = require('./exceptions/ClientError');
@@ -27,6 +46,10 @@ const init = async () => {
   // Inisialisasi services
   const albumsService = new AlbumsService();
   const songsService = new SongsService();
+  const usersService = new UsersService();
+  const authenticationsService = new AuthenticationsService();
+  const collaborationsService = new CollaborationsService();
+  const playlistsService = new PlaylistsService(collaborationsService);
 
   // Konfigurasi server Hapi.js
   const server = Hapi.server({
@@ -37,6 +60,30 @@ const init = async () => {
         origin: ['*'],
       },
     },
+  });
+
+  // Registrasi plugin eksternal
+  await server.register([
+    {
+      plugin: Jwt,
+    },
+  ]);
+
+  // Mendefinisikan strategy autentikasi jwt
+  server.auth.strategy('openmusic_jwt', 'jwt', {
+    keys: process.env.ACCESS_TOKEN_KEY,
+    verify: {
+      aud: false,
+      iss: false,
+      sub: false,
+      maxAgeSec: process.env.ACCESS_TOKEN_AGE,
+    },
+    validate: (artifacts) => ({
+      isValid: true,
+      credentials: {
+        id: artifacts.decoded.payload.id,
+      },
+    }),
   });
 
   // Konfigurasi onPreResponse untuk error handling
@@ -80,8 +127,8 @@ const init = async () => {
     path: '/',
     handler: () => ({
       status: 'success',
-      message: 'OpenMusic API v1.0.0',
-      description: 'API untuk mengelola data musik (album dan lagu)',
+      message: 'OpenMusic API v2.0.0',
+      description: 'API untuk mengelola data musik dengan fitur user authentication dan playlist',
       endpoints: {
         albums: {
           'POST /albums': 'Menambahkan album baru',
@@ -95,6 +142,28 @@ const init = async () => {
           'GET /songs/{id}': 'Mendapatkan detail lagu berdasarkan ID',
           'PUT /songs/{id}': 'Mengubah data lagu berdasarkan ID',
           'DELETE /songs/{id}': 'Menghapus lagu berdasarkan ID'
+        },
+        users: {
+          'POST /users': 'Registrasi user baru',
+          'GET /users/{id}': 'Mendapatkan detail user berdasarkan ID'
+        },
+        authentications: {
+          'POST /authentications': 'Login user',
+          'PUT /authentications': 'Refresh access token',
+          'DELETE /authentications': 'Logout user'
+        },
+        playlists: {
+          'POST /playlists': 'Membuat playlist baru',
+          'GET /playlists': 'Mendapatkan daftar playlist user',
+          'DELETE /playlists/{id}': 'Menghapus playlist',
+          'POST /playlists/{id}/songs': 'Menambahkan lagu ke playlist',
+          'GET /playlists/{id}/songs': 'Mendapatkan lagu dalam playlist',
+          'DELETE /playlists/{id}/songs': 'Menghapus lagu dari playlist',
+          'GET /playlists/{id}/activities': 'Mendapatkan aktivitas playlist'
+        },
+        collaborations: {
+          'POST /collaborations': 'Menambahkan kolaborator ke playlist',
+          'DELETE /collaborations': 'Menghapus kolaborator dari playlist'
         }
       },
       documentation: 'Akses endpoint di atas untuk menggunakan API'
@@ -121,6 +190,45 @@ const init = async () => {
     options: {
       service: songsService,
       validator: SongsValidator,
+    },
+  });
+
+  // Registrasi plugin users
+  await server.register({
+    plugin: users,
+    options: {
+      service: usersService,
+      validator: UsersValidator,
+    },
+  });
+
+  // Registrasi plugin authentications
+  await server.register({
+    plugin: authentications,
+    options: {
+      authenticationsService,
+      usersService,
+      tokenManager: TokenManager,
+      validator: AuthenticationsValidator,
+    },
+  });
+
+  // Registrasi plugin playlists
+  await server.register({
+    plugin: playlists,
+    options: {
+      service: playlistsService,
+      validator: PlaylistsValidator,
+    },
+  });
+
+  // Registrasi plugin collaborations
+  await server.register({
+    plugin: collaborations,
+    options: {
+      collaborationsService,
+      playlistsService,
+      validator: CollaborationsValidator,
     },
   });
 
