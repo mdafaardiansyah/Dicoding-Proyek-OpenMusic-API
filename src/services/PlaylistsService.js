@@ -5,9 +5,10 @@ const NotFoundError = require('../exceptions/NotFoundError');
 const AuthorizationError = require('../exceptions/AuthorizationError');
 
 class PlaylistsService {
-  constructor(collaborationService) {
+  constructor(collaborationService, songsService) {
     this._pool = new Pool();
     this._collaborationService = collaborationService;
+    this._songsService = songsService;
   }
 
   async addPlaylist({ name, owner }) {
@@ -55,6 +56,9 @@ class PlaylistsService {
   }
 
   async addSongToPlaylist(playlistId, songId) {
+    // Verifikasi bahwa song exists
+    await this._songsService.getSongById(songId);
+    
     const id = `playlistsong-${nanoid(16)}`;
 
     const query = {

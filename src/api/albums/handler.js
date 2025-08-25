@@ -13,10 +13,12 @@ class AlbumsHandler {
    * Constructor untuk AlbumsHandler
    * @param {Object} service - Instance dari AlbumsService
    * @param {Object} validator - Instance dari AlbumsValidator
+   * @param {Object} songsService - Instance dari SongsService
    */
-  constructor(service, validator) {
+  constructor(service, validator, songsService) {
     this._service = service;
     this._validator = validator;
+    this._songsService = songsService;
 
     // Auto-bind semua method untuk mempertahankan context 'this'
     autoBind(this);
@@ -59,6 +61,12 @@ class AlbumsHandler {
 
     // Ambil data album dari database
     const album = await this._service.getAlbumById(id);
+    
+    // Ambil songs yang ada dalam album
+    const songs = await this._songsService.getSongsByAlbumId(id);
+    
+    // Tambahkan songs ke dalam album
+    album.songs = songs;
 
     return {
       status: 'success',

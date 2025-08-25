@@ -48,8 +48,8 @@ const init = async () => {
   const songsService = new SongsService();
   const usersService = new UsersService();
   const authenticationsService = new AuthenticationsService();
-  const collaborationsService = new CollaborationsService();
-  const playlistsService = new PlaylistsService(collaborationsService);
+  const collaborationsService = new CollaborationsService(usersService);
+  const playlistsService = new PlaylistsService(collaborationsService, songsService);
 
   // Konfigurasi server Hapi.js
   const server = Hapi.server({
@@ -181,6 +181,7 @@ const init = async () => {
     options: {
       service: albumsService,
       validator: AlbumsValidator,
+      songsService: songsService,
     },
   });
 
@@ -219,6 +220,7 @@ const init = async () => {
     options: {
       service: playlistsService,
       validator: PlaylistsValidator,
+      songsService: songsService,
     },
   });
 

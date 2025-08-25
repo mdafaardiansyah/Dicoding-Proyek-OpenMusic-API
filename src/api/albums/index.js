@@ -12,9 +12,9 @@ const routes = require('./routes');
 module.exports = {
   name: 'albums',
   version: '1.0.0',
-  register: async (server, { service, validator }) => {
-    // Inisialisasi handler dengan service dan validator
-    const albumsHandler = new AlbumsHandler(service, validator);
+  register: async (server, { service, validator, songsService }) => {
+    // Inisialisasi handler dengan service, validator, dan songsService
+    const albumsHandler = new AlbumsHandler(service, validator, songsService);
 
     // Daftarkan routes ke server
     server.route(routes(albumsHandler));

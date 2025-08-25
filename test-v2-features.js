@@ -2,15 +2,16 @@ const axios = require('axios');
 
 const BASE_URL = 'http://localhost:5000';
 
-// Test data
+// Test data with unique usernames
+const timestamp = Date.now();
 const testUser = {
-  username: 'testuser',
+  username: `testuser${timestamp}`,
   password: 'testpassword123',
   fullname: 'Test User'
 };
 
 const testUser2 = {
-  username: 'testuser2',
+  username: `testuser2${timestamp}`,
   password: 'testpassword456',
   fullname: 'Test User 2'
 };
