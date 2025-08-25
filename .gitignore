@@ -25,6 +25,9 @@ dist-ssr
 .env.production.local
 .env.*.local
 
+# Trae AI
+.trae/
+
 # Runtime data
 pids
 *.pid
