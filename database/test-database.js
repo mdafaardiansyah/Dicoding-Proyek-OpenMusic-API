@@ -108,7 +108,11 @@ async function testDatabaseOperations() {
       [songId]
     );
     console.log('✅ Foreign key constraint bekerja!');
-    console.log(`   Album ID setelah delete: ${songAfterDelete.rows[0].album_id || 'NULL'}`);
+    if (songAfterDelete.rows.length === 0) {
+      console.log('   Song berhasil dihapus karena CASCADE');
+    } else {
+      console.log(`   Album ID setelah delete: ${songAfterDelete.rows[0].album_id || 'NULL'}`);
+    }
     
     // Cleanup
     console.log('\n🧹 Cleanup test data...');
