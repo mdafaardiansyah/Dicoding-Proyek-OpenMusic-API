@@ -158,6 +158,6 @@ git branch -d hotfix/v1-database-timeout
 
 ---
 
-**Dibuat pada**: $(Get-Date -Format "yyyy-MM-dd")
+**Dibuat pada**: 25-08-2025
 **Versi Dokumen**: 1.0
 **Maintainer**: Development Team
