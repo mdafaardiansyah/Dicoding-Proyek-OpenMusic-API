@@ -13,10 +13,12 @@ class SongsHandler {
    * Constructor untuk SongsHandler
    * @param {Object} service - Instance dari SongsService
    * @param {Object} validator - Instance dari SongsValidator
+   * @param {Object} cacheService - Instance dari CacheService
    */
-  constructor(service, validator) {
+  constructor(service, validator, cacheService) {
     this._service = service;
     this._validator = validator;
+    this._cacheService = cacheService;
 
     // Auto-bind semua method untuk mempertahankan context 'this'
     autoBind(this);
@@ -44,6 +46,12 @@ class SongsHandler {
       albumId,
     });
 
+    // Invalidate cache untuk songs
+    await this._cacheService.delete('songs:all:all');
+    if (albumId) {
+      await this._cacheService.delete(`album:${albumId}`);
+    }
+
     const response = h.response({
       status: 'success',
       message: 'Lagu berhasil ditambahkan',
@@ -61,18 +69,36 @@ class SongsHandler {
    * @param {Object} h - Hapi response toolkit
    * @returns {Object} - Response dengan data songs
    */
-  async getSongsHandler(request) {
+  async getSongsHandler(request, h) {
     const { title, performer } = request.query;
+    const cacheKey = `songs:${title || 'all'}:${performer || 'all'}`;
 
-    // Ambil data lagu dari database dengan filter pencarian
-    const songs = await this._service.getSongs({ title, performer });
+    try {
+      const result = await this._cacheService.get(cacheKey);
+      const songs = JSON.parse(result);
 
-    return {
-      status: 'success',
-      data: {
-        songs,
-      },
-    };
+      const response = h.response({
+        status: 'success',
+        data: {
+          songs,
+        },
+      });
+      response.header('X-Data-Source', 'cache');
+      return response;
+    } catch (cacheError) {
+      // Ambil data lagu dari database dengan filter pencarian
+      const songs = await this._service.getSongs({ title, performer });
+      await this._cacheService.set(cacheKey, JSON.stringify(songs), 1800); // 30 minutes
+
+      const response = h.response({
+        status: 'success',
+        data: {
+          songs,
+        },
+      });
+      response.header('X-Data-Source', 'database');
+      return response;
+    }
   }
 
   /**
@@ -81,18 +107,36 @@ class SongsHandler {
    * @param {Object} h - Hapi response toolkit
    * @returns {Object} - Response dengan data song
    */
-  async getSongByIdHandler(request) {
+  async getSongByIdHandler(request, h) {
     const { id } = request.params;
+    const cacheKey = `song:${id}`;
 
-    // Ambil data lagu dari database
-    const song = await this._service.getSongById(id);
+    try {
+      const result = await this._cacheService.get(cacheKey);
+      const song = JSON.parse(result);
 
-    return {
-      status: 'success',
-      data: {
-        song,
-      },
-    };
+      const response = h.response({
+        status: 'success',
+        data: {
+          song,
+        },
+      });
+      response.header('X-Data-Source', 'cache');
+      return response;
+    } catch (cacheError) {
+      // Ambil data lagu dari database
+      const song = await this._service.getSongById(id);
+      await this._cacheService.set(cacheKey, JSON.stringify(song), 1800); // 30 minutes
+
+      const response = h.response({
+        status: 'success',
+        data: {
+          song,
+        },
+      });
+      response.header('X-Data-Source', 'database');
+      return response;
+    }
   }
 
   /**
@@ -118,6 +162,13 @@ class SongsHandler {
       albumId,
     });
 
+    // Invalidate cache untuk songs
+    await this._cacheService.delete(`song:${id}`);
+    await this._cacheService.delete('songs:all:all');
+    if (albumId) {
+      await this._cacheService.delete(`album:${albumId}`);
+    }
+
     return {
       status: 'success',
       message: 'Lagu berhasil diperbarui',
@@ -133,8 +184,18 @@ class SongsHandler {
   async deleteSongByIdHandler(request) {
     const { id } = request.params;
 
+    // Ambil data lagu untuk mendapatkan albumId sebelum dihapus
+    const song = await this._service.getSongById(id);
+
     // Hapus lagu dari database
     await this._service.deleteSongById(id);
+
+    // Invalidate cache untuk songs
+    await this._cacheService.delete(`song:${id}`);
+    await this._cacheService.delete('songs:all:all');
+    if (song.albumId) {
+      await this._cacheService.delete(`album:${song.albumId}`);
+    }
 
     return {
       status: 'success',
