@@ -1034,6 +1034,117 @@ curl -w "@curl-format.txt" http://localhost:5000/albums/1
 curl -w "@curl-format.txt" http://localhost:5000/albums/1
 ```
 
+## API Documentation (OpenAPI/Swagger) 🆕
+
+### Overview
+Dokumentasi API lengkap tersedia dalam format OpenAPI 3.0 (Swagger) yang dibuat berdasarkan koleksi testing Postman V3. Dokumentasi mencakup semua endpoint, parameter, contoh request/response, dan model data.
+
+### File Dokumentasi
+```
+docs/openapi/
+├── openmusic-api-v3.yaml          # Dokumentasi format YAML
+├── openmusic-api-v3.json          # Dokumentasi format JSON
+└── README.md                      # Panduan penggunaan
+```
+
+### Fitur Dokumentasi
+- **✅ 25+ Endpoints** - Semua endpoint dari koleksi Postman V3
+- **✅ Request/Response Schemas** - Model data lengkap untuk semua endpoint
+- **✅ Authentication** - JWT Bearer Token dengan contoh
+- **✅ Error Handling** - Semua kode status HTTP yang mungkin
+- **✅ Examples** - Contoh request dan response untuk setiap endpoint
+- **✅ Caching Headers** - Header `X-Data-Source` untuk endpoint yang di-cache
+- **✅ File Upload** - Spesifikasi upload cover album dengan validasi
+- **✅ V3 Features** - Dokumentasi fitur baru seperti likes, exports, uploads
+
+### Cara Menggunakan
+
+#### 1. Swagger UI Online
+```bash
+# Buka Swagger Editor
+https://editor.swagger.io/
+
+# Copy-paste isi file openmusic-api-v3.yaml
+# Dokumentasi akan ter-render otomatis
+```
+
+#### 2. Local Development
+```bash
+# Menggunakan Docker
+docker run -p 8080:8080 -e SWAGGER_JSON=/docs/openmusic-api-v3.json \
+  -v $(pwd)/docs/openapi:/docs swaggerapi/swagger-ui
+
+# Akses: http://localhost:8080
+```
+
+#### 3. VS Code Extension
+```bash
+# Install extension "Swagger Viewer"
+# Buka file openmusic-api-v3.yaml
+# Command Palette: "Swagger: Preview"
+```
+
+### Endpoint Coverage
+Dokumentasi mencakup semua endpoint dari testing Postman:
+
+**🎵 Albums (5 endpoints)**
+- `POST /albums` - Tambah album
+- `GET /albums/{albumId}` - Detail album (cached)
+- `PUT /albums/{albumId}` - Edit album
+- `DELETE /albums/{albumId}` - Hapus album
+- `POST /albums/{albumId}/covers` - Upload cover
+
+**❤️ Album Likes (3 endpoints)**
+- `POST /albums/{albumId}/likes` - Like album
+- `DELETE /albums/{albumId}/likes` - Unlike album
+- `GET /albums/{albumId}/likes` - Jumlah likes
+
+**🎶 Songs (5 endpoints)**
+- `POST /songs` - Tambah lagu
+- `GET /songs` - Daftar lagu dengan filter (cached)
+- `GET /songs/{songId}` - Detail lagu (cached)
+- `PUT /songs/{songId}` - Edit lagu
+- `DELETE /songs/{songId}` - Hapus lagu
+
+**👤 Users & Auth (4 endpoints)**
+- `POST /users` - Registrasi pengguna
+- `POST /authentications` - Login
+- `PUT /authentications` - Refresh token
+- `DELETE /authentications` - Logout
+
+**📝 Playlists (7 endpoints)**
+- `POST /playlists` - Tambah playlist
+- `GET /playlists` - Daftar playlist (cached)
+- `DELETE /playlists/{playlistId}` - Hapus playlist
+- `POST /playlists/{playlistId}/songs` - Tambah lagu ke playlist
+- `GET /playlists/{playlistId}/songs` - Lagu dalam playlist (cached)
+- `DELETE /playlists/{playlistId}/songs/{songId}` - Hapus lagu dari playlist
+- `GET /playlists/{playlistId}/activities` - Aktivitas playlist (cached)
+
+**🤝 Collaborations (2 endpoints)**
+- `POST /collaborations` - Tambah kolaborator
+- `DELETE /collaborations` - Hapus kolaborator
+
+**📤 Exports (1 endpoint)**
+- `POST /export/playlists/{playlistId}` - Export playlist ke email
+
+### Integration dengan Development
+```javascript
+// Tambahkan ke aplikasi Express untuk development
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./docs/openapi/openmusic-api-v3.json');
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+// Akses: http://localhost:5000/api-docs
+```
+
+### Sinkronisasi dengan Testing
+Dokumentasi OpenAPI ini:
+- **📊 Dibuat dari 200+ test cases** Postman V3
+- **🔄 Selalu sinkron** dengan koleksi testing terbaru
+- **✅ Teruji dengan real API responses** dari testing aktual
+- **🛡️ Mencerminkan validation rules** yang sudah diverifikasi
+
 ### Monitoring
 - **Redis**: Monitor cache hit/miss ratio
 - **RabbitMQ**: Monitor queue status via management UI
