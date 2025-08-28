@@ -67,7 +67,7 @@ class AlbumsService {
     }
 
     const album = result.rows[0];
-    
+
     // Rename cover field to coverUrl as per PRD specification
     // Set coverUrl to null if cover is null/undefined
     album.coverUrl = album.cover || null;
@@ -127,7 +127,7 @@ class AlbumsService {
     };
 
     const result = await this._pool.query(query);
-    
+
     if (!result.rows.length) {
       throw new NotFoundError('Album tidak ditemukan');
     }
@@ -159,15 +159,15 @@ class AlbumsService {
   async addAlbumLike(userId, albumId) {
     // Verify album exists
     await this.verifyAlbumExists(albumId);
-    
+
     // Check if user already liked this album
     const hasLiked = await this.verifyAlbumLike(userId, albumId);
     if (hasLiked) {
       throw new InvariantError('Anda sudah menyukai album ini');
     }
-    
+
     const id = `like-${nanoid(16)}`;
-    
+
     const query = {
       text: 'INSERT INTO user_album_likes VALUES($1, $2, $3) RETURNING id',
       values: [id, userId, albumId],
@@ -188,7 +188,7 @@ class AlbumsService {
   async deleteAlbumLike(userId, albumId) {
     // Verify album exists
     await this.verifyAlbumExists(albumId);
-    
+
     const query = {
       text: 'DELETE FROM user_album_likes WHERE user_id = $1 AND album_id = $2 RETURNING id',
       values: [userId, albumId],
@@ -225,7 +225,7 @@ class AlbumsService {
   async getAlbumLikes(albumId) {
     // Verify album exists
     await this.verifyAlbumExists(albumId);
-    
+
     const query = {
       text: 'SELECT COUNT(*) FROM user_album_likes WHERE album_id = $1',
       values: [albumId],
