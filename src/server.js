@@ -34,7 +34,6 @@ const {
   PlaylistsValidator,
   CollaborationsValidator,
   ExportsValidator,
-  UploadsValidator,
 } = require('./validator');
 
 // Import API plugins
@@ -131,7 +130,7 @@ const init = async () => {
         path: request.path,
         method: request.method
       });
-      
+
       // Client error handling
       if (response instanceof ClientError) {
         const newResponse = h.response({
@@ -239,6 +238,7 @@ const init = async () => {
     options: {
       service: songsService,
       validator: SongsValidator,
+      cacheService,
     },
   });
 
@@ -248,6 +248,7 @@ const init = async () => {
     options: {
       service: usersService,
       validator: UsersValidator,
+      cacheService,
     },
   });
 
@@ -269,6 +270,7 @@ const init = async () => {
       service: playlistsService,
       validator: PlaylistsValidator,
       songsService: songsService,
+      cacheService,
     },
   });
 
