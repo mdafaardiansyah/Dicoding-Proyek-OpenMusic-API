@@ -144,7 +144,7 @@ class PlaylistsService {
 
       try {
         await this._collaborationService.verifyCollaborator(playlistId, userId);
-      } catch {
+      } catch (collaborationError) {
         throw error;
       }
     }

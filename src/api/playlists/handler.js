@@ -1,9 +1,10 @@
 const autoBind = require('auto-bind');
 
 class PlaylistsHandler {
-  constructor(service, validator) {
+  constructor(service, validator, cacheService) {
     this._service = service;
     this._validator = validator;
+    this._cacheService = cacheService;
 
     autoBind(this);
   }
@@ -18,6 +19,9 @@ class PlaylistsHandler {
       owner: credentialId,
     });
 
+    // Invalidate cache
+    await this._cacheService.delete(`playlists:${credentialId}`);
+
     const response = h.response({
       status: 'success',
       message: 'Playlist berhasil ditambahkan',
@@ -29,16 +33,35 @@ class PlaylistsHandler {
     return response;
   }
 
-  async getPlaylistsHandler(request) {
+  async getPlaylistsHandler(request, h) {
     const { id: credentialId } = request.auth.credentials;
-    const playlists = await this._service.getPlaylists(credentialId);
+    const cacheKey = `playlists:${credentialId}`;
 
-    return {
-      status: 'success',
-      data: {
-        playlists,
-      },
-    };
+    try {
+      const result = await this._cacheService.get(cacheKey);
+      const playlists = JSON.parse(result);
+
+      const response = h.response({
+        status: 'success',
+        data: {
+          playlists,
+        },
+      });
+      response.header('X-Data-Source', 'cache');
+      return response;
+    } catch (cacheError) {
+      const playlists = await this._service.getPlaylists(credentialId);
+      await this._cacheService.set(cacheKey, JSON.stringify(playlists), 1800); // 30 minutes
+
+      const response = h.response({
+        status: 'success',
+        data: {
+          playlists,
+        },
+      });
+      response.header('X-Data-Source', 'database');
+      return response;
+    }
   }
 
   async deletePlaylistByIdHandler(request) {
@@ -47,6 +70,11 @@ class PlaylistsHandler {
 
     await this._service.verifyPlaylistOwner(id, credentialId);
     await this._service.deletePlaylistById(id);
+
+    // Invalidate cache
+    await this._cacheService.delete(`playlists:${credentialId}`);
+    await this._cacheService.delete(`playlist_songs:${id}`);
+    await this._cacheService.delete(`playlist_activities:${id}`);
 
     return {
       status: 'success',
@@ -69,6 +97,10 @@ class PlaylistsHandler {
       'add',
     );
 
+    // Invalidate cache
+    await this._cacheService.delete(`playlist_songs:${playlistId}`);
+    await this._cacheService.delete(`playlist_activities:${playlistId}`);
+
     const response = h.response({
       status: 'success',
       message: 'Lagu berhasil ditambahkan ke playlist',
@@ -77,23 +109,43 @@ class PlaylistsHandler {
     return response;
   }
 
-  async getSongsFromPlaylistHandler(request) {
+  async getSongsFromPlaylistHandler(request, h) {
     const { id: playlistId } = request.params;
     const { id: credentialId } = request.auth.credentials;
+    const cacheKey = `playlist_songs:${playlistId}`;
 
     await this._service.verifyPlaylistAccess(playlistId, credentialId);
-    const playlist = await this._service.getPlaylistById(playlistId);
-    const songs = await this._service.getSongsFromPlaylist(playlistId);
 
-    return {
-      status: 'success',
-      data: {
-        playlist: {
-          ...playlist,
-          songs,
+    try {
+      const result = await this._cacheService.get(cacheKey);
+      const playlistData = JSON.parse(result);
+
+      const response = h.response({
+        status: 'success',
+        data: {
+          playlist: playlistData,
         },
-      },
-    };
+      });
+      response.header('X-Data-Source', 'cache');
+      return response;
+    } catch (cacheError) {
+      const playlist = await this._service.getPlaylistById(playlistId);
+      const songs = await this._service.getSongsFromPlaylist(playlistId);
+      const playlistData = {
+        ...playlist,
+        songs,
+      };
+      await this._cacheService.set(cacheKey, JSON.stringify(playlistData), 1800); // 30 minutes
+
+      const response = h.response({
+        status: 'success',
+        data: {
+          playlist: playlistData,
+        },
+      });
+      response.header('X-Data-Source', 'database');
+      return response;
+    }
   }
 
   async deleteSongFromPlaylistHandler(request) {
@@ -111,26 +163,50 @@ class PlaylistsHandler {
       'delete',
     );
 
+    // Invalidate cache
+    await this._cacheService.delete(`playlist_songs:${playlistId}`);
+    await this._cacheService.delete(`playlist_activities:${playlistId}`);
+
     return {
       status: 'success',
       message: 'Lagu berhasil dihapus dari playlist',
     };
   }
 
-  async getPlaylistActivitiesHandler(request) {
+  async getPlaylistActivitiesHandler(request, h) {
     const { id: playlistId } = request.params;
     const { id: credentialId } = request.auth.credentials;
+    const cacheKey = `playlist_activities:${playlistId}`;
 
     await this._service.verifyPlaylistAccess(playlistId, credentialId);
-    const activities = await this._service.getPlaylistSongActivities(playlistId);
 
-    return {
-      status: 'success',
-      data: {
-        playlistId,
-        activities,
-      },
-    };
+    try {
+      const result = await this._cacheService.get(cacheKey);
+      const activities = JSON.parse(result);
+
+      const response = h.response({
+        status: 'success',
+        data: {
+          playlistId,
+          activities,
+        },
+      });
+      response.header('X-Data-Source', 'cache');
+      return response;
+    } catch (cacheError) {
+      const activities = await this._service.getPlaylistSongActivities(playlistId);
+      await this._cacheService.set(cacheKey, JSON.stringify(activities), 1800); // 30 minutes
+
+      const response = h.response({
+        status: 'success',
+        data: {
+          playlistId,
+          activities,
+        },
+      });
+      response.header('X-Data-Source', 'database');
+      return response;
+    }
   }
 }
 

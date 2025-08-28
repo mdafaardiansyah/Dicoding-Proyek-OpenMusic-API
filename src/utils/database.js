@@ -4,17 +4,18 @@
  */
 
 const { Pool } = require('pg');
+const config = require('./config');
 
 /**
  * Konfigurasi connection pool PostgreSQL
  * Menggunakan environment variables untuk konfigurasi database
  */
 const pool = new Pool({
-  user: process.env.PGUSER || 'postgres',
-  host: process.env.PGHOST || 'localhost',
-  database: process.env.PGDATABASE || 'openmusic',
-  password: process.env.PGPASSWORD || 'password',
-  port: process.env.PGPORT || 5432,
+  user: config.database.user || 'postgres',
+  host: config.database.host || 'localhost',
+  database: config.database.database || 'openmusic',
+  password: config.database.password || 'password',
+  port: config.database.port || 5432,
   // Konfigurasi connection pool
   max: 20, // Maksimal 20 koneksi dalam pool
   idleTimeoutMillis: 30000, // Timeout untuk koneksi idle (30 detik)

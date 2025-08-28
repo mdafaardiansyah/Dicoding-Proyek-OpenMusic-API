@@ -7,6 +7,10 @@ require('dotenv').config();
 
 const Hapi = require('@hapi/hapi');
 const Jwt = require('@hapi/jwt');
+const Inert = require('@hapi/inert');
+const path = require('path');
+const config = require('./utils/config');
+const { pool } = require('./utils');
 
 // Import services
 const { AlbumsService, SongsService } = require('./services');
@@ -14,6 +18,9 @@ const UsersService = require('./services/UsersService');
 const AuthenticationsService = require('./services/AuthenticationsService');
 const PlaylistsService = require('./services/PlaylistsService');
 const CollaborationsService = require('./services/CollaborationsService');
+const StorageService = require('./services/storage/StorageService');
+const CacheService = require('./services/redis/CacheService');
+const ExportsService = require('./services/ExportsService');
 
 // Import tokenize
 const TokenManager = require('./tokenize/TokenManager');
@@ -26,6 +33,7 @@ const {
   AuthenticationsValidator,
   PlaylistsValidator,
   CollaborationsValidator,
+  ExportsValidator,
 } = require('./validator');
 
 // Import API plugins
@@ -35,6 +43,7 @@ const users = require('./api/users');
 const authentications = require('./api/authentications');
 const playlists = require('./api/playlists');
 const collaborations = require('./api/collaborations');
+const exportsPlugin = require('./api/exports');
 
 // Import exceptions
 const ClientError = require('./exceptions/ClientError');
@@ -44,16 +53,19 @@ const ClientError = require('./exceptions/ClientError');
  */
 const init = async () => {
   // Inisialisasi services
-  const albumsService = new AlbumsService();
+  const cacheService = new CacheService();
+  const albumsService = new AlbumsService(pool, cacheService);
   const songsService = new SongsService();
   const usersService = new UsersService();
   const authenticationsService = new AuthenticationsService();
   const collaborationsService = new CollaborationsService(usersService);
   const playlistsService = new PlaylistsService(collaborationsService, songsService);
+  const storageService = new StorageService(path.resolve(__dirname, 'api/albums/file/images'));
+  const exportsService = new ExportsService();
 
   // Konfigurasi server Hapi.js
   const server = Hapi.server({
-    port: process.env.PORT || 5000,
+    port: config.app.port || 5000,
     host: process.env.NODE_ENV !== 'production' ? 'localhost' : '0.0.0.0',
     routes: {
       cors: {
@@ -67,16 +79,32 @@ const init = async () => {
     {
       plugin: Jwt,
     },
+    {
+      plugin: Inert,
+    },
   ]);
+
+  // Konfigurasi untuk melayani file statis dari direktori uploads
+  server.route({
+    method: 'GET',
+    path: '/uploads/{param*}',
+    handler: {
+      directory: {
+        path: path.resolve(__dirname, '../uploads'),
+        redirectToSlash: true,
+        index: false,
+      },
+    },
+  });
 
   // Mendefinisikan strategy autentikasi jwt
   server.auth.strategy('openmusic_jwt', 'jwt', {
-    keys: process.env.ACCESS_TOKEN_KEY,
+    keys: config.jwt.accessTokenKey,
     verify: {
       aud: false,
       iss: false,
       sub: false,
-      maxAgeSec: process.env.ACCESS_TOKEN_AGE,
+      maxAgeSec: config.jwt.accessTokenAge,
     },
     validate: (artifacts) => ({
       isValid: true,
@@ -93,6 +121,16 @@ const init = async () => {
 
     // Penanganan client error secara internal
     if (response instanceof Error) {
+      console.log('onPreResponse - Error caught:', {
+        name: response.name,
+        message: response.message,
+        statusCode: response.statusCode,
+        isClientError: response instanceof ClientError,
+        isServer: response.isServer,
+        path: request.path,
+        method: request.method
+      });
+
       // Client error handling
       if (response instanceof ClientError) {
         const newResponse = h.response({
@@ -127,14 +165,18 @@ const init = async () => {
     path: '/',
     handler: () => ({
       status: 'success',
-      message: 'OpenMusic API v2.0.0',
-      description: 'API untuk mengelola data musik dengan fitur user authentication dan playlist',
+      message: 'OpenMusic API v3.0.0',
+      description: 'API untuk mengelola data musik dengan fitur user authentication, playlist, caching, file upload, likes, dan export',
       endpoints: {
         albums: {
           'POST /albums': 'Menambahkan album baru',
           'GET /albums/{id}': 'Mendapatkan detail album berdasarkan ID',
           'PUT /albums/{id}': 'Mengubah data album berdasarkan ID',
-          'DELETE /albums/{id}': 'Menghapus album berdasarkan ID'
+          'DELETE /albums/{id}': 'Menghapus album berdasarkan ID',
+          'POST /albums/{id}/covers': 'Upload cover album',
+          'POST /albums/{id}/likes': 'Like album',
+          'DELETE /albums/{id}/likes': 'Unlike album',
+          'GET /albums/{id}/likes': 'Mendapatkan jumlah likes album'
         },
         songs: {
           'POST /songs': 'Menambahkan lagu baru',
@@ -164,6 +206,9 @@ const init = async () => {
         collaborations: {
           'POST /collaborations': 'Menambahkan kolaborator ke playlist',
           'DELETE /collaborations': 'Menghapus kolaborator dari playlist'
+        },
+        exports: {
+          'POST /export/playlists/{id}': 'Export playlist ke email'
         }
       },
       documentation: 'Akses endpoint di atas untuk menggunakan API'
@@ -182,6 +227,8 @@ const init = async () => {
       service: albumsService,
       validator: AlbumsValidator,
       songsService: songsService,
+      storageService: storageService,
+      cacheService: cacheService,
     },
   });
 
@@ -191,6 +238,7 @@ const init = async () => {
     options: {
       service: songsService,
       validator: SongsValidator,
+      cacheService,
     },
   });
 
@@ -200,6 +248,7 @@ const init = async () => {
     options: {
       service: usersService,
       validator: UsersValidator,
+      cacheService,
     },
   });
 
@@ -221,6 +270,7 @@ const init = async () => {
       service: playlistsService,
       validator: PlaylistsValidator,
       songsService: songsService,
+      cacheService,
     },
   });
 
@@ -231,6 +281,16 @@ const init = async () => {
       collaborationsService,
       playlistsService,
       validator: CollaborationsValidator,
+    },
+  });
+
+  // Registrasi plugin exports
+  await server.register({
+    plugin: exportsPlugin,
+    options: {
+      service: exportsService,
+      validator: ExportsValidator,
+      playlistsService: playlistsService,
     },
   });
 
