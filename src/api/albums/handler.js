@@ -4,6 +4,7 @@
  */
 
 const autoBind = require('auto-bind');
+const config = require('../../utils/config');
 
 /**
  * Handler class untuk Albums API
@@ -14,11 +15,15 @@ class AlbumsHandler {
    * @param {Object} service - Instance dari AlbumsService
    * @param {Object} validator - Instance dari AlbumsValidator
    * @param {Object} songsService - Instance dari SongsService
+   * @param {Object} storageService - Instance dari StorageService
+   * @param {Object} cacheService - Instance dari CacheService
    */
-  constructor(service, validator, songsService) {
+  constructor(service, validator, songsService, storageService, cacheService) {
     this._service = service;
     this._validator = validator;
     this._songsService = songsService;
+    this._storageService = storageService;
+    this._cacheService = cacheService;
 
     // Auto-bind semua method untuk mempertahankan context 'this'
     autoBind(this);
@@ -74,6 +79,147 @@ class AlbumsHandler {
         album,
       },
     };
+  }
+
+  /**
+   * Handler untuk POST /albums/{id}/covers - Upload cover album
+   * @param {Object} request - Hapi request object
+   * @param {Object} h - Hapi response toolkit
+   * @returns {Object} - Response success message
+   */
+  async postUploadImageHandler(request, h) {
+    try {
+      const { cover } = request.payload;
+      const { id } = request.params;
+
+      console.log('Upload request received for album:', id);
+      console.log('Cover object:', cover);
+      console.log('Cover hapi headers:', cover.hapi.headers);
+
+      // Validasi MIME type
+      this._validator.validateImageHeaders(cover.hapi.headers);
+      
+      // Validasi ukuran file - gunakan Buffer.byteLength atau cover._data.length
+      const fileSize = Buffer.isBuffer(cover._data) ? cover._data.length : Buffer.byteLength(cover._data);
+      console.log('File size:', fileSize);
+      this._validator.validateImagePayload({ size: fileSize });
+
+      const filename = await this._storageService.writeFile(cover, cover.hapi);
+      const coverUrl = `http://${config.app.host}:${config.app.port}/uploads/${filename}`;
+
+      await this._service.addAlbumCover(id, coverUrl);
+
+      const response = h.response({
+        status: 'success',
+        message: 'Sampul berhasil diunggah',
+      });
+      response.code(201);
+      return response;
+    } catch (error) {
+      console.error('Error in postUploadImageHandler:', error);
+      
+      // Handle storage errors
+      if (error.message.includes('Ukuran file melebihi') || 
+          error.message.includes('Gagal menyimpan file') ||
+          error.message.includes('Error saat membaca file')) {
+        const response = h.response({
+          status: 'fail',
+          message: error.message,
+        });
+        response.code(400);
+        return response;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Handler untuk POST /albums/{id}/likes - Like album
+   * @param {Object} request - Hapi request object
+   * @param {Object} h - Hapi response toolkit
+   * @returns {Object} - Response success message
+   */
+  async postAlbumLikeHandler(request, h) {
+    try {
+      const { id: albumId } = request.params;
+      const { id: userId } = request.auth.credentials;
+
+      await this._service.addAlbumLike(userId, albumId);
+      await this._cacheService.delete(`album_likes:${albumId}`);
+
+      const response = h.response({
+        status: 'success',
+        message: 'Album berhasil disukai',
+      });
+      response.code(201);
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Handler untuk DELETE /albums/{id}/likes - Unlike album
+   * @param {Object} request - Hapi request object
+   * @param {Object} h - Hapi response toolkit
+   * @returns {Object} - Response success message
+   */
+  async deleteAlbumLikeHandler(request) {
+    try {
+      const { id: albumId } = request.params;
+      const { id: userId } = request.auth.credentials;
+
+      await this._service.deleteAlbumLike(userId, albumId);
+      await this._cacheService.delete(`album_likes:${albumId}`);
+
+      return {
+        status: 'success',
+        message: 'Album batal disukai',
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Handler untuk GET /albums/{id}/likes - Get album likes count
+   * @param {Object} request - Hapi request object
+   * @param {Object} h - Hapi response toolkit
+   * @returns {Object} - Response dengan jumlah likes
+   */
+  async getAlbumLikesHandler(request, h) {
+    try {
+      const { id: albumId } = request.params;
+      const cacheKey = `album_likes:${albumId}`;
+
+      try {
+        const result = await this._cacheService.get(cacheKey);
+        const likes = JSON.parse(result);
+        
+        const response = h.response({
+          status: 'success',
+          data: {
+            likes,
+          },
+        });
+        response.header('X-Data-Source', 'cache');
+        return response;
+      } catch (cacheError) {
+        const likes = await this._service.getAlbumLikes(albumId);
+        await this._cacheService.set(cacheKey, JSON.stringify(likes), 1800); // 30 minutes
+
+        const response = h.response({
+          status: 'success',
+          data: {
+            likes,
+          },
+        });
+        response.header('X-Data-Source', 'database');
+        return response;
+      }
+    } catch (error) {
+      throw error;
+    }
   }
 
   /**

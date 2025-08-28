@@ -49,6 +49,54 @@ const routes = (handler) => [
       tags: ['api', 'albums'],
     },
   },
+  {
+    method: 'POST',
+    path: '/albums/{id}/covers',
+    handler: handler.postUploadImageHandler,
+    options: {
+      description: 'Upload cover album',
+      notes: 'Endpoint untuk mengunggah sampul album',
+      tags: ['api', 'albums'],
+      payload: {
+        allow: 'multipart/form-data',
+        multipart: true,
+        output: 'stream',
+        maxBytes: 512000, // 500KB
+      },
+    },
+  },
+  {
+    method: 'POST',
+    path: '/albums/{id}/likes',
+    handler: handler.postAlbumLikeHandler,
+    options: {
+      auth: 'openmusic_jwt',
+      description: 'Like album',
+      notes: 'Endpoint untuk menyukai album',
+      tags: ['api', 'albums'],
+    },
+  },
+  {
+    method: 'DELETE',
+    path: '/albums/{id}/likes',
+    handler: handler.deleteAlbumLikeHandler,
+    options: {
+      auth: 'openmusic_jwt',
+      description: 'Unlike album',
+      notes: 'Endpoint untuk batal menyukai album',
+      tags: ['api', 'albums'],
+    },
+  },
+  {
+    method: 'GET',
+    path: '/albums/{id}/likes',
+    handler: handler.getAlbumLikesHandler,
+    options: {
+      description: 'Get album likes count',
+      notes: 'Endpoint untuk mendapatkan jumlah likes album',
+      tags: ['api', 'albums'],
+    },
+  },
 ];
 
 module.exports = routes;
