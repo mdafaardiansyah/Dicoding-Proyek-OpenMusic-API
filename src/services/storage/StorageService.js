@@ -2,7 +2,7 @@
 // const AWS = require('aws-sdk');
 const fs = require('fs');
 const path = require('path');
-const config = require('../../utils/config');
+// const config = require('../../utils/config');
 
 class StorageService {
   constructor() {
@@ -24,18 +24,18 @@ class StorageService {
     const timestamp = +new Date();
     const fileExtension = path.extname(meta.filename);
     const filename = `${timestamp}${fileExtension}`;
-    
+
     // Buat struktur direktori berdasarkan tanggal untuk organisasi yang lebih baik
     const currentDate = new Date();
     const year = currentDate.getFullYear();
     const month = String(currentDate.getMonth() + 1).padStart(2, '0');
     const uploadDir = path.join('uploads', 'covers', String(year), month);
-    
+
     // Pastikan direktori ada
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
-    
+
     const filePath = path.join(uploadDir, filename);
     const fileStream = fs.createWriteStream(filePath);
 
@@ -43,15 +43,15 @@ class StorageService {
       fileStream.on('error', (error) => {
         reject(new Error(`Gagal menyimpan file: ${error.message}`));
       });
-      
+
       file.pipe(fileStream);
-      
+
       file.on('end', () => {
         // Return relative path untuk disimpan di database
         const relativePath = path.join('covers', String(year), month, filename).replace(/\\/g, '/');
         resolve(relativePath);
       });
-      
+
       file.on('error', (error) => {
         reject(new Error(`Error saat membaca file: ${error.message}`));
       });
