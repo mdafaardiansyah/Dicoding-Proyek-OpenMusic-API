@@ -120,6 +120,13 @@ Versi 3 dari OpenMusic API menghadirkan peningkatan performa dan fitur-fitur ent
 - **Storage**: Local file system with organized structure
 - **Performance**: Cache optimization and monitoring
 
+## Related Services
+
+### Consumer Services
+Berikut adalah layanan-layanan yang mengonsumsi OpenMusic API:
+
+- **[OpenMusic Consumer](https://github.com/mdafaardiansyah/openmusic_consumer)** - Layanan consumer independen untuk memproses export playlist melalui RabbitMQ message queue dan mengirimkan hasil export via email. Service ini menangani background processing untuk operasi export yang memakan waktu dan resources.
+
 ## API Endpoints
 
 ### 🎵 Albums (Public + V3 Features)
