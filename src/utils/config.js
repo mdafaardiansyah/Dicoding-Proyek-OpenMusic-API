@@ -28,7 +28,7 @@ const config = {
     host: process.env.REDIS_SERVER || 'localhost',
     port: process.env.REDIS_PORT || 6379,
     password: process.env.REDIS_PASSWORD,
-    url: process.env.REDIS_PASSWORD 
+    url: process.env.REDIS_PASSWORD
       ? `redis://:${process.env.REDIS_PASSWORD}@${process.env.REDIS_SERVER || 'localhost'}:${process.env.REDIS_PORT || 6379}`
       : `redis://${process.env.REDIS_SERVER || 'localhost'}:${process.env.REDIS_PORT || 6379}`,
   },
