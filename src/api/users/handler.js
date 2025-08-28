@@ -1,9 +1,10 @@
 const autoBind = require('auto-bind');
 
 class UsersHandler {
-  constructor(service, validator) {
+  constructor(service, validator, cacheService) {
     this._service = service;
     this._validator = validator;
+    this._cacheService = cacheService;
 
     autoBind(this);
   }
@@ -31,14 +32,33 @@ class UsersHandler {
 
   async getUserByIdHandler(request, h) {
     const { id } = request.params;
-    const user = await this._service.getUserById(id);
+    const cacheKey = `user:${id}`;
 
-    return {
-      status: 'success',
-      data: {
-        user,
-      },
-    };
+    try {
+      const result = await this._cacheService.get(cacheKey);
+      const user = JSON.parse(result);
+
+      const response = h.response({
+        status: 'success',
+        data: {
+          user,
+        },
+      });
+      response.header('X-Data-Source', 'cache');
+      return response;
+    } catch (cacheError) {
+      const user = await this._service.getUserById(id);
+      await this._cacheService.set(cacheKey, JSON.stringify(user), 1800); // 30 minutes
+
+      const response = h.response({
+        status: 'success',
+        data: {
+          user,
+        },
+      });
+      response.header('X-Data-Source', 'database');
+      return response;
+    }
   }
 }
 
