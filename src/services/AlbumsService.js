@@ -11,8 +11,9 @@ const { NotFoundError, InvariantError } = require('../exceptions');
  * Service class untuk mengelola data albums
  */
 class AlbumsService {
-  constructor() {
-    this._pool = pool;
+  constructor(poolInstance, cacheService) {
+    this._pool = poolInstance || pool;
+    this._cacheService = cacheService;
   }
 
   /**
@@ -55,7 +56,7 @@ class AlbumsService {
    */
   async getAlbumById(id) {
     const query = {
-      text: 'SELECT id, name, year FROM albums WHERE id = $1',
+      text: 'SELECT id, name, year, cover FROM albums WHERE id = $1',
       values: [id],
     };
 
@@ -65,7 +66,14 @@ class AlbumsService {
       throw new NotFoundError('Album tidak ditemukan');
     }
 
-    return result.rows[0];
+    const album = result.rows[0];
+    
+    // Rename cover field to coverUrl as per PRD specification
+    // Set coverUrl to null if cover is null/undefined
+    album.coverUrl = album.cover || null;
+    delete album.cover;
+
+    return album;
   }
 
   /**
@@ -110,7 +118,7 @@ class AlbumsService {
   /**
    * Mengecek apakah album dengan ID tertentu ada
    * @param {string} id - ID album yang dicek
-   * @returns {Promise<boolean>} - True jika album ada
+   * @throws {NotFoundError} - Jika album tidak ditemukan
    */
   async verifyAlbumExists(id) {
     const query = {
@@ -119,7 +127,112 @@ class AlbumsService {
     };
 
     const result = await this._pool.query(query);
+    
+    if (!result.rows.length) {
+      throw new NotFoundError('Album tidak ditemukan');
+    }
+  }
+
+  /**
+   * Mengupload cover album
+   * @param {string} id - ID album
+   * @param {string} coverUrl - URL cover album
+   */
+  async addAlbumCover(id, coverUrl) {
+    const query = {
+      text: 'UPDATE albums SET cover = $1 WHERE id = $2 RETURNING id',
+      values: [coverUrl, id],
+    };
+
+    const result = await this._pool.query(query);
+
+    if (!result.rows.length) {
+      throw new NotFoundError('Gagal mengunggah cover. Id tidak ditemukan');
+    }
+  }
+
+  /**
+   * Menambahkan like pada album
+   * @param {string} userId - ID user
+   * @param {string} albumId - ID album
+   */
+  async addAlbumLike(userId, albumId) {
+    // Verify album exists
+    await this.verifyAlbumExists(albumId);
+    
+    // Check if user already liked this album
+    const hasLiked = await this.verifyAlbumLike(userId, albumId);
+    if (hasLiked) {
+      throw new InvariantError('Anda sudah menyukai album ini');
+    }
+    
+    const id = `like-${nanoid(16)}`;
+    
+    const query = {
+      text: 'INSERT INTO user_album_likes VALUES($1, $2, $3) RETURNING id',
+      values: [id, userId, albumId],
+    };
+
+    const result = await this._pool.query(query);
+
+    if (!result.rows[0].id) {
+      throw new InvariantError('Gagal menambahkan like');
+    }
+  }
+
+  /**
+   * Menghapus like pada album
+   * @param {string} userId - ID user
+   * @param {string} albumId - ID album
+   */
+  async deleteAlbumLike(userId, albumId) {
+    // Verify album exists
+    await this.verifyAlbumExists(albumId);
+    
+    const query = {
+      text: 'DELETE FROM user_album_likes WHERE user_id = $1 AND album_id = $2 RETURNING id',
+      values: [userId, albumId],
+    };
+
+    const result = await this._pool.query(query);
+
+    if (!result.rows.length) {
+      throw new NotFoundError('Gagal menghapus like');
+    }
+  }
+
+  /**
+   * Mengecek apakah user sudah like album
+   * @param {string} userId - ID user
+   * @param {string} albumId - ID album
+   * @returns {Promise<boolean>} - True jika sudah like
+   */
+  async verifyAlbumLike(userId, albumId) {
+    const query = {
+      text: 'SELECT id FROM user_album_likes WHERE user_id = $1 AND album_id = $2',
+      values: [userId, albumId],
+    };
+
+    const result = await this._pool.query(query);
     return result.rows.length > 0;
+  }
+
+  /**
+   * Mendapatkan jumlah like album
+   * @param {string} albumId - ID album
+   * @returns {Promise<number>} - Jumlah like
+   */
+  async getAlbumLikes(albumId) {
+    // Verify album exists
+    await this.verifyAlbumExists(albumId);
+    
+    const query = {
+      text: 'SELECT COUNT(*) FROM user_album_likes WHERE album_id = $1',
+      values: [albumId],
+    };
+
+    const result = await this._pool.query(query);
+    return parseInt(result.rows[0].count, 10);
   }
 }
 
