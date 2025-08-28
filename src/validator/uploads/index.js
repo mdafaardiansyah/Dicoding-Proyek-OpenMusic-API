@@ -8,7 +8,7 @@ const UploadsValidator = {
       throw new InvariantError(validationResult.error.message);
     }
   },
-  
+
   validateImagePayload: (payload) => {
     const validationResult = ImagePayloadSchema.validate(payload);
     if (validationResult.error) {
