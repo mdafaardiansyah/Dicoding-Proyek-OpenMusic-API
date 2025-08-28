@@ -8,7 +8,9 @@ require('dotenv').config();
 const Hapi = require('@hapi/hapi');
 const Jwt = require('@hapi/jwt');
 const Inert = require('@hapi/inert');
+const swaggerUi = require('swagger-ui-express');
 const path = require('path');
+const fs = require('fs');
 const config = require('./utils/config');
 const { pool } = require('./utils');
 
@@ -74,6 +76,11 @@ const init = async () => {
     },
   });
 
+  // Memuat dokumentasi OpenAPI
+  const swaggerDocument = JSON.parse(
+    fs.readFileSync(path.join(__dirname, '../docs/openapi/openmusic-api-v3.json'), 'utf8')
+  );
+
   // Registrasi plugin eksternal
   await server.register([
     {
@@ -83,6 +90,92 @@ const init = async () => {
       plugin: Inert,
     },
   ]);
+
+  // Route untuk melayani swagger.json
+  server.route({
+    method: 'GET',
+    path: '/swagger.json',
+    handler: () => swaggerDocument,
+  });
+
+  // Route untuk dokumentasi OpenAPI menggunakan Swagger UI dari CDN
+  server.route({
+    method: 'GET',
+    path: '/docs',
+    handler: (request, h) => {
+      const html = `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>OpenMusic API Documentation</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui.css" />
+    <link rel="icon" type="image/png" href="https://petstore.swagger.io/favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="https://petstore.swagger.io/favicon-16x16.png" sizes="16x16" />
+    <style>
+      html {
+        box-sizing: border-box;
+        overflow: -moz-scrollbars-vertical;
+        overflow-y: scroll;
+      }
+      *, *:before, *:after {
+        box-sizing: inherit;
+      }
+      body {
+        margin:0;
+        background: #fafafa;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+      }
+      .swagger-ui .topbar {
+        background-color: #2d5a27;
+      }
+      .swagger-ui .topbar .download-url-wrapper {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui-bundle.js" crossorigin></script>
+    <script src="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui-standalone-preset.js" crossorigin></script>
+    <script>
+    window.onload = function() {
+      // Begin Swagger UI call region
+      const ui = SwaggerUIBundle({
+        url: '/swagger.json',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        plugins: [
+          SwaggerUIBundle.plugins.DownloadUrl
+        ],
+        layout: "StandaloneLayout",
+        validatorUrl: null,
+        tryItOutEnabled: true,
+        docExpansion: 'list',
+        filter: true,
+        supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch'],
+        onComplete: function() {
+          console.log('Swagger UI loaded successfully');
+        },
+        onFailure: function(data) {
+          console.error('Failed to load Swagger UI:', data);
+        }
+      });
+      // End Swagger UI call region
+      
+      window.ui = ui;
+    };
+    </script>
+  </body>
+</html>
+      `;
+      return h.response(html).type('text/html');
+    },
+  });
 
   // Konfigurasi untuk melayani file statis dari direktori uploads
   server.route({
@@ -159,10 +252,19 @@ const init = async () => {
     return h.continue;
   });
 
-  // Route untuk root path - informasi API
+  // Route untuk root path - redirect ke dokumentasi OpenAPI
   server.route({
     method: 'GET',
     path: '/',
+    handler: (request, h) => {
+      return h.redirect('/docs');
+    },
+  });
+
+  // Route untuk informasi API (opsional)
+  server.route({
+    method: 'GET',
+    path: '/info',
     handler: () => ({
       status: 'success',
       message: 'OpenMusic API v3.0.0',
