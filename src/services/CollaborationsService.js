@@ -1,7 +1,6 @@
 const { Pool } = require('pg');
 const { nanoid } = require('nanoid');
 const InvariantError = require('../exceptions/InvariantError');
-const NotFoundError = require('../exceptions/NotFoundError');
 
 class CollaborationsService {
   constructor(usersService) {
@@ -12,7 +11,7 @@ class CollaborationsService {
   async addCollaboration(playlistId, userId) {
     // Verifikasi bahwa user exists
     await this._usersService.getUserById(userId);
-    
+
     const id = `collab-${nanoid(16)}`;
 
     const query = {
