@@ -1,4 +1,3 @@
-const { nanoid } = require('nanoid');
 const ProducerService = require('./rabbitmq/ProducerService');
 
 class ExportsService {
