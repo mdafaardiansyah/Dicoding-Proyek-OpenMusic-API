@@ -44,6 +44,9 @@ class AlbumsHandler {
     // Tambahkan album ke database
     const albumId = await this._service.addAlbum({ name, year });
 
+    // Invalidate cache untuk albums
+    await this._cacheService.delete(`album:${albumId}`);
+
     const response = h.response({
       status: 'success',
       message: 'Album berhasil ditambahkan',
@@ -61,24 +64,42 @@ class AlbumsHandler {
    * @param {Object} h - Hapi response toolkit
    * @returns {Object} - Response dengan data album
    */
-  async getAlbumByIdHandler(request) {
+  async getAlbumByIdHandler(request, h) {
     const { id } = request.params;
+    const cacheKey = `album:${id}`;
 
-    // Ambil data album dari database
-    const album = await this._service.getAlbumById(id);
-    
-    // Ambil songs yang ada dalam album
-    const songs = await this._songsService.getSongsByAlbumId(id);
-    
-    // Tambahkan songs ke dalam album
-    album.songs = songs;
+    try {
+      const result = await this._cacheService.get(cacheKey);
+      const album = JSON.parse(result);
 
-    return {
-      status: 'success',
-      data: {
-        album,
-      },
-    };
+      const response = h.response({
+        status: 'success',
+        data: {
+          album,
+        },
+      });
+      response.header('X-Data-Source', 'cache');
+      return response;
+    } catch (cacheError) {
+      // Ambil data album dari database
+      const album = await this._service.getAlbumById(id);
+
+      // Ambil songs yang ada dalam album
+      const songs = await this._songsService.getSongsByAlbumId(id);
+
+      // Tambahkan songs ke dalam album
+      album.songs = songs;
+      await this._cacheService.set(cacheKey, JSON.stringify(album), 1800); // 30 minutes
+
+      const response = h.response({
+        status: 'success',
+        data: {
+          album,
+        },
+      });
+      response.header('X-Data-Source', 'database');
+      return response;
+    }
   }
 
   /**
@@ -98,7 +119,7 @@ class AlbumsHandler {
 
       // Validasi MIME type
       this._validator.validateImageHeaders(cover.hapi.headers);
-      
+
       // Validasi ukuran file - gunakan Buffer.byteLength atau cover._data.length
       const fileSize = Buffer.isBuffer(cover._data) ? cover._data.length : Buffer.byteLength(cover._data);
       console.log('File size:', fileSize);
@@ -117,9 +138,9 @@ class AlbumsHandler {
       return response;
     } catch (error) {
       console.error('Error in postUploadImageHandler:', error);
-      
+
       // Handle storage errors
-      if (error.message.includes('Ukuran file melebihi') || 
+      if (error.message.includes('Ukuran file melebihi') ||
           error.message.includes('Gagal menyimpan file') ||
           error.message.includes('Error saat membaca file')) {
         const response = h.response({
@@ -140,22 +161,18 @@ class AlbumsHandler {
    * @returns {Object} - Response success message
    */
   async postAlbumLikeHandler(request, h) {
-    try {
-      const { id: albumId } = request.params;
-      const { id: userId } = request.auth.credentials;
+    const { id: albumId } = request.params;
+    const { id: userId } = request.auth.credentials;
 
-      await this._service.addAlbumLike(userId, albumId);
-      await this._cacheService.delete(`album_likes:${albumId}`);
+    await this._service.addAlbumLike(userId, albumId);
+    await this._cacheService.delete(`album_likes:${albumId}`);
 
-      const response = h.response({
-        status: 'success',
-        message: 'Album berhasil disukai',
-      });
-      response.code(201);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = h.response({
+      status: 'success',
+      message: 'Album berhasil disukai',
+    });
+    response.code(201);
+    return response;
   }
 
   /**
@@ -165,20 +182,16 @@ class AlbumsHandler {
    * @returns {Object} - Response success message
    */
   async deleteAlbumLikeHandler(request) {
-    try {
-      const { id: albumId } = request.params;
-      const { id: userId } = request.auth.credentials;
+    const { id: albumId } = request.params;
+    const { id: userId } = request.auth.credentials;
 
-      await this._service.deleteAlbumLike(userId, albumId);
-      await this._cacheService.delete(`album_likes:${albumId}`);
+    await this._service.deleteAlbumLike(userId, albumId);
+    await this._cacheService.delete(`album_likes:${albumId}`);
 
-      return {
-        status: 'success',
-        message: 'Album batal disukai',
-      };
-    } catch (error) {
-      throw error;
-    }
+    return {
+      status: 'success',
+      message: 'Album batal disukai',
+    };
   }
 
   /**
@@ -188,37 +201,33 @@ class AlbumsHandler {
    * @returns {Object} - Response dengan jumlah likes
    */
   async getAlbumLikesHandler(request, h) {
+    const { id: albumId } = request.params;
+    const cacheKey = `album_likes:${albumId}`;
+
     try {
-      const { id: albumId } = request.params;
-      const cacheKey = `album_likes:${albumId}`;
+      const result = await this._cacheService.get(cacheKey);
+      const likes = JSON.parse(result);
 
-      try {
-        const result = await this._cacheService.get(cacheKey);
-        const likes = JSON.parse(result);
-        
-        const response = h.response({
-          status: 'success',
-          data: {
-            likes,
-          },
-        });
-        response.header('X-Data-Source', 'cache');
-        return response;
-      } catch (cacheError) {
-        const likes = await this._service.getAlbumLikes(albumId);
-        await this._cacheService.set(cacheKey, JSON.stringify(likes), 1800); // 30 minutes
+      const response = h.response({
+        status: 'success',
+        data: {
+          likes,
+        },
+      });
+      response.header('X-Data-Source', 'cache');
+      return response;
+    } catch (cacheError) {
+      const likes = await this._service.getAlbumLikes(albumId);
+      await this._cacheService.set(cacheKey, JSON.stringify(likes), 1800); // 30 minutes
 
-        const response = h.response({
-          status: 'success',
-          data: {
-            likes,
-          },
-        });
-        response.header('X-Data-Source', 'database');
-        return response;
-      }
-    } catch (error) {
-      throw error;
+      const response = h.response({
+        status: 'success',
+        data: {
+          likes,
+        },
+      });
+      response.header('X-Data-Source', 'database');
+      return response;
     }
   }
 
@@ -238,6 +247,9 @@ class AlbumsHandler {
     // Update album di database
     await this._service.editAlbumById(id, { name, year });
 
+    // Invalidate cache untuk album
+    await this._cacheService.delete(`album:${id}`);
+
     return {
       status: 'success',
       message: 'Album berhasil diperbarui',
@@ -255,6 +267,10 @@ class AlbumsHandler {
 
     // Hapus album dari database
     await this._service.deleteAlbumById(id);
+
+    // Invalidate cache untuk album
+    await this._cacheService.delete(`album:${id}`);
+    await this._cacheService.delete(`album_likes:${id}`);
 
     return {
       status: 'success',
