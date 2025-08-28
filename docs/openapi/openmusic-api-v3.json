@@ -1,0 +1,2466 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "OpenMusic API V3",
+    "description": "OpenMusic API adalah RESTful API untuk mengelola musik, album, playlist, dan fitur sosial.\n\n## Fitur V3\n- **Server-Side Caching**: Redis caching untuk performa optimal\n- **File Upload**: Upload cover album dengan validasi\n- **Album Likes**: Sistem like/unlike untuk album\n- **Playlist Export**: Export playlist ke email menggunakan RabbitMQ\n- **Enhanced Security**: Validasi file dan keamanan berlapis\n\n## Authentication\nAPI menggunakan JWT Bearer Token untuk autentikasi. Token dapat diperoleh melalui endpoint `/authentications`.\n\n## Caching\nEndpoint tertentu menggunakan Redis caching dengan header `X-Data-Source` yang menunjukkan sumber data (cache/database).\n\n## Rate Limiting\nAPI menerapkan rate limiting untuk mencegah abuse.\n",
+    "version": "3.0.0",
+    "contact": {
+      "name": "OpenMusic API Support",
+      "email": "support@openmusic.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.openmusic.com",
+      "description": "Production server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Albums",
+      "description": "Operasi CRUD untuk album musik"
+    },
+    {
+      "name": "Songs",
+      "description": "Operasi CRUD untuk lagu"
+    },
+    {
+      "name": "Users",
+      "description": "Manajemen pengguna"
+    },
+    {
+      "name": "Authentications",
+      "description": "Autentikasi dan manajemen token"
+    },
+    {
+      "name": "Playlists",
+      "description": "Manajemen playlist dan kolaborasi"
+    },
+    {
+      "name": "Collaborations",
+      "description": "Kolaborasi playlist antar pengguna"
+    },
+    {
+      "name": "Exports",
+      "description": "Export playlist ke email"
+    },
+    {
+      "name": "Uploads",
+      "description": "Upload file cover album"
+    },
+    {
+      "name": "Album Likes",
+      "description": "Sistem like/unlike album"
+    }
+  ],
+  "paths": {
+    "/albums": {
+      "post": {
+        "tags": [
+          "Albums"
+        ],
+        "summary": "Tambah album baru",
+        "description": "Membuat album baru dengan nama dan tahun",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlbumInput"
+              },
+              "examples": {
+                "valid": {
+                  "summary": "Album valid",
+                  "value": {
+                    "name": "Viva la vida",
+                    "year": 2008
+                  }
+                },
+                "invalid_name": {
+                  "summary": "Nama tidak valid",
+                  "value": {
+                    "name": 123,
+                    "year": 2008
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Album berhasil ditambahkan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlbumCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/albums/{albumId}": {
+      "get": {
+        "tags": [
+          "Albums"
+        ],
+        "summary": "Dapatkan detail album",
+        "description": "Mengambil detail album berdasarkan ID. \nEndpoint ini menggunakan caching Redis untuk performa optimal.\n",
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "description": "ID album",
+            "schema": {
+              "type": "string",
+              "example": "album-123"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detail album berhasil diambil",
+            "headers": {
+              "X-Data-Source": {
+                "description": "Sumber data (cache atau database)",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "cache",
+                    "database"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlbumDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Album tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Albums"
+        ],
+        "summary": "Edit album",
+        "description": "Mengubah data album berdasarkan ID",
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "description": "ID album",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlbumInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Album berhasil diubah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Album tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Albums"
+        ],
+        "summary": "Hapus album",
+        "description": "Menghapus album berdasarkan ID",
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "description": "ID album",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Album berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Album tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/albums/{albumId}/likes": {
+      "post": {
+        "tags": [
+          "Album Likes"
+        ],
+        "summary": "Like album",
+        "description": "Memberikan like pada album",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "description": "ID album",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Album berhasil di-like",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Album sudah di-like sebelumnya",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Album tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Album Likes"
+        ],
+        "summary": "Unlike album",
+        "description": "Menghapus like dari album",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "description": "ID album",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Like berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Album belum di-like sebelumnya",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Album tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Album Likes"
+        ],
+        "summary": "Dapatkan jumlah like album",
+        "description": "Mengambil jumlah total like untuk album",
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "description": "ID album",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jumlah like berhasil diambil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlbumLikesResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Album tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/albums/{albumId}/covers": {
+      "post": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Upload cover album",
+        "description": "Upload gambar cover untuk album. \nFile harus berupa gambar (JPEG, PNG) dengan ukuran maksimal 512KB.\n",
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "description": "ID album",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cover": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "File gambar cover album"
+                  }
+                },
+                "required": [
+                  "cover"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cover berhasil diupload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "File tidak valid atau terlalu besar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Album tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "File terlalu besar (>512KB)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/songs": {
+      "post": {
+        "tags": [
+          "Songs"
+        ],
+        "summary": "Tambah lagu baru",
+        "description": "Membuat lagu baru dengan judul, tahun, performer, genre, dan duration",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SongInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lagu berhasil ditambahkan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SongCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Songs"
+        ],
+        "summary": "Dapatkan semua lagu",
+        "description": "Mengambil daftar semua lagu dengan opsi filter.\nEndpoint ini menggunakan caching Redis.\n",
+        "parameters": [
+          {
+            "name": "title",
+            "in": "query",
+            "description": "Filter berdasarkan judul lagu",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "performer",
+            "in": "query",
+            "description": "Filter berdasarkan performer",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daftar lagu berhasil diambil",
+            "headers": {
+              "X-Data-Source": {
+                "description": "Sumber data (cache atau database)",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "cache",
+                    "database"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SongsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/songs/{songId}": {
+      "get": {
+        "tags": [
+          "Songs"
+        ],
+        "summary": "Dapatkan detail lagu",
+        "description": "Mengambil detail lagu berdasarkan ID.\nEndpoint ini menggunakan caching Redis.\n",
+        "parameters": [
+          {
+            "name": "songId",
+            "in": "path",
+            "required": true,
+            "description": "ID lagu",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detail lagu berhasil diambil",
+            "headers": {
+              "X-Data-Source": {
+                "description": "Sumber data (cache atau database)",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "cache",
+                    "database"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SongDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Lagu tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Songs"
+        ],
+        "summary": "Edit lagu",
+        "description": "Mengubah data lagu berdasarkan ID",
+        "parameters": [
+          {
+            "name": "songId",
+            "in": "path",
+            "required": true,
+            "description": "ID lagu",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SongInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lagu berhasil diubah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Lagu tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Songs"
+        ],
+        "summary": "Hapus lagu",
+        "description": "Menghapus lagu berdasarkan ID",
+        "parameters": [
+          {
+            "name": "songId",
+            "in": "path",
+            "required": true,
+            "description": "ID lagu",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lagu berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Lagu tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Registrasi pengguna baru",
+        "description": "Mendaftarkan pengguna baru dengan username, password, dan fullname",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pengguna berhasil didaftarkan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid atau username sudah digunakan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/authentications": {
+      "post": {
+        "tags": [
+          "Authentications"
+        ],
+        "summary": "Login pengguna",
+        "description": "Melakukan autentikasi pengguna dan mendapatkan access token dan refresh token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Login berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Kredensial tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Authentications"
+        ],
+        "summary": "Refresh access token",
+        "description": "Memperbarui access token menggunakan refresh token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token berhasil diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid atau refresh token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Authentications"
+        ],
+        "summary": "Logout pengguna",
+        "description": "Menghapus refresh token dari database (logout)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logout berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid atau refresh token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists": {
+      "post": {
+        "tags": [
+          "Playlists"
+        ],
+        "summary": "Tambah playlist baru",
+        "description": "Membuat playlist baru untuk pengguna yang terautentikasi",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Playlist berhasil ditambahkan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Playlists"
+        ],
+        "summary": "Dapatkan playlist pengguna",
+        "description": "Mengambil daftar playlist milik pengguna yang terautentikasi.\nEndpoint ini menggunakan caching Redis.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daftar playlist berhasil diambil",
+            "headers": {
+              "X-Data-Source": {
+                "description": "Sumber data (cache atau database)",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "cache",
+                    "database"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists/{playlistId}": {
+      "delete": {
+        "tags": [
+          "Playlists"
+        ],
+        "summary": "Hapus playlist",
+        "description": "Menghapus playlist berdasarkan ID (hanya pemilik yang dapat menghapus)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "description": "ID playlist",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playlist berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Tidak memiliki akses ke playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Playlist tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists/{playlistId}/songs": {
+      "post": {
+        "tags": [
+          "Playlists"
+        ],
+        "summary": "Tambah lagu ke playlist",
+        "description": "Menambahkan lagu ke playlist (pemilik atau kolaborator)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "description": "ID playlist",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistSongInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lagu berhasil ditambahkan ke playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Tidak memiliki akses ke playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Playlist atau lagu tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Playlists"
+        ],
+        "summary": "Dapatkan lagu dalam playlist",
+        "description": "Mengambil daftar lagu dalam playlist.\nEndpoint ini menggunakan caching Redis.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "description": "ID playlist",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daftar lagu dalam playlist berhasil diambil",
+            "headers": {
+              "X-Data-Source": {
+                "description": "Sumber data (cache atau database)",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "cache",
+                    "database"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistSongsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Tidak memiliki akses ke playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Playlist tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists/{playlistId}/songs/{songId}": {
+      "delete": {
+        "tags": [
+          "Playlists"
+        ],
+        "summary": "Hapus lagu dari playlist",
+        "description": "Menghapus lagu dari playlist (pemilik atau kolaborator)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "description": "ID playlist",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "songId",
+            "in": "path",
+            "required": true,
+            "description": "ID lagu",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lagu berhasil dihapus dari playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Tidak memiliki akses ke playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Playlist atau lagu tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists/{playlistId}/activities": {
+      "get": {
+        "tags": [
+          "Playlists"
+        ],
+        "summary": "Dapatkan aktivitas playlist",
+        "description": "Mengambil riwayat aktivitas playlist (tambah/hapus lagu).\nEndpoint ini menggunakan caching Redis.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "description": "ID playlist",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aktivitas playlist berhasil diambil",
+            "headers": {
+              "X-Data-Source": {
+                "description": "Sumber data (cache atau database)",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "cache",
+                    "database"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistActivitiesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Tidak memiliki akses ke playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Playlist tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collaborations": {
+      "post": {
+        "tags": [
+          "Collaborations"
+        ],
+        "summary": "Tambah kolaborator",
+        "description": "Menambahkan kolaborator ke playlist (hanya pemilik playlist)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollaborationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Kolaborator berhasil ditambahkan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollaborationCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Tidak memiliki akses ke playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Playlist atau pengguna tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Collaborations"
+        ],
+        "summary": "Hapus kolaborator",
+        "description": "Menghapus kolaborator dari playlist (hanya pemilik playlist)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollaborationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Kolaborator berhasil dihapus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Tidak memiliki akses ke playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Kolaborasi tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/export/playlists/{playlistId}": {
+      "post": {
+        "tags": [
+          "Exports"
+        ],
+        "summary": "Export playlist ke email",
+        "description": "Mengekspor playlist ke email menggunakan RabbitMQ untuk background processing.\nEmail akan dikirim berisi daftar lagu dalam format JSON.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "description": "ID playlist",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Permintaan export berhasil diproses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Tidak memiliki akses ke playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Playlist tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT Bearer Token untuk autentikasi"
+      }
+    },
+    "schemas": {
+      "AlbumInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "year"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nama album",
+            "example": "Viva la vida"
+          },
+          "year": {
+            "type": "integer",
+            "description": "Tahun rilis album",
+            "minimum": 1900,
+            "maximum": 2100,
+            "example": 2008
+          }
+        }
+      },
+      "AlbumCreateResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "albumId": {
+                "type": "string",
+                "description": "ID album yang baru dibuat",
+                "example": "album-123"
+              }
+            }
+          }
+        }
+      },
+      "AlbumDetailResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "album": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "example": "album-123"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "Viva la vida"
+                  },
+                  "year": {
+                    "type": "integer",
+                    "example": 2008
+                  },
+                  "coverUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "URL cover album (jika ada)",
+                    "example": "http://localhost:5000/upload/covers/2025/01/cover-123.jpg"
+                  },
+                  "songs": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "song-123"
+                        },
+                        "title": {
+                          "type": "string",
+                          "example": "Viva la vida"
+                        },
+                        "performer": {
+                          "type": "string",
+                          "example": "Coldplay"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "AlbumLikesResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "likes": {
+                "type": "integer",
+                "description": "Jumlah total like untuk album",
+                "example": 42
+              }
+            }
+          }
+        }
+      },
+      "SongInput": {
+        "type": "object",
+        "required": [
+          "title",
+          "year",
+          "performer",
+          "genre",
+          "duration"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Judul lagu",
+            "example": "Viva la vida"
+          },
+          "year": {
+            "type": "integer",
+            "description": "Tahun rilis lagu",
+            "minimum": 1900,
+            "maximum": 2100,
+            "example": 2008
+          },
+          "performer": {
+            "type": "string",
+            "description": "Penyanyi/band",
+            "example": "Coldplay"
+          },
+          "genre": {
+            "type": "string",
+            "description": "Genre musik",
+            "example": "Alternative Rock"
+          },
+          "duration": {
+            "type": "integer",
+            "description": "Durasi lagu dalam detik",
+            "minimum": 1,
+            "example": 242
+          },
+          "albumId": {
+            "type": "string",
+            "description": "ID album (opsional)",
+            "example": "album-123"
+          }
+        }
+      },
+      "SongCreateResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "songId": {
+                "type": "string",
+                "description": "ID lagu yang baru dibuat",
+                "example": "song-123"
+              }
+            }
+          }
+        }
+      },
+      "SongsResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "songs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "example": "song-123"
+                    },
+                    "title": {
+                      "type": "string",
+                      "example": "Viva la vida"
+                    },
+                    "performer": {
+                      "type": "string",
+                      "example": "Coldplay"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "SongDetailResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "song": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "example": "song-123"
+                  },
+                  "title": {
+                    "type": "string",
+                    "example": "Viva la vida"
+                  },
+                  "year": {
+                    "type": "integer",
+                    "example": 2008
+                  },
+                  "performer": {
+                    "type": "string",
+                    "example": "Coldplay"
+                  },
+                  "genre": {
+                    "type": "string",
+                    "example": "Alternative Rock"
+                  },
+                  "duration": {
+                    "type": "integer",
+                    "example": 242
+                  },
+                  "albumId": {
+                    "type": "string",
+                    "nullable": true,
+                    "example": "album-123"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "UserInput": {
+        "type": "object",
+        "required": [
+          "username",
+          "password",
+          "fullname"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Username unik",
+            "example": "johndoe"
+          },
+          "password": {
+            "type": "string",
+            "description": "Password pengguna",
+            "minLength": 6,
+            "example": "secret123"
+          },
+          "fullname": {
+            "type": "string",
+            "description": "Nama lengkap pengguna",
+            "example": "John Doe"
+          }
+        }
+      },
+      "UserCreateResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "userId": {
+                "type": "string",
+                "description": "ID pengguna yang baru dibuat",
+                "example": "user-123"
+              }
+            }
+          }
+        }
+      },
+      "LoginInput": {
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Username pengguna",
+            "example": "johndoe"
+          },
+          "password": {
+            "type": "string",
+            "description": "Password pengguna",
+            "example": "secret123"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "accessToken": {
+                "type": "string",
+                "description": "JWT access token",
+                "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              },
+              "refreshToken": {
+                "type": "string",
+                "description": "JWT refresh token",
+                "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              }
+            }
+          }
+        }
+      },
+      "RefreshTokenInput": {
+        "type": "object",
+        "required": [
+          "refreshToken"
+        ],
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "JWT refresh token",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          }
+        }
+      },
+      "RefreshTokenResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "accessToken": {
+                "type": "string",
+                "description": "JWT access token baru",
+                "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              }
+            }
+          }
+        }
+      },
+      "PlaylistInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nama playlist",
+            "example": "My Favorite Songs"
+          }
+        }
+      },
+      "PlaylistCreateResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "playlistId": {
+                "type": "string",
+                "description": "ID playlist yang baru dibuat",
+                "example": "playlist-123"
+              }
+            }
+          }
+        }
+      },
+      "PlaylistsResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "playlists": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "example": "playlist-123"
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "My Favorite Songs"
+                    },
+                    "username": {
+                      "type": "string",
+                      "example": "johndoe"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "PlaylistSongInput": {
+        "type": "object",
+        "required": [
+          "songId"
+        ],
+        "properties": {
+          "songId": {
+            "type": "string",
+            "description": "ID lagu yang akan ditambahkan",
+            "example": "song-123"
+          }
+        }
+      },
+      "PlaylistSongsResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "playlist": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "example": "playlist-123"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "My Favorite Songs"
+                  },
+                  "username": {
+                    "type": "string",
+                    "example": "johndoe"
+                  },
+                  "songs": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "song-123"
+                        },
+                        "title": {
+                          "type": "string",
+                          "example": "Viva la vida"
+                        },
+                        "performer": {
+                          "type": "string",
+                          "example": "Coldplay"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "PlaylistActivitiesResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "playlistId": {
+                "type": "string",
+                "example": "playlist-123"
+              },
+              "activities": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "username": {
+                      "type": "string",
+                      "example": "johndoe"
+                    },
+                    "title": {
+                      "type": "string",
+                      "example": "Viva la vida"
+                    },
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "add",
+                        "delete"
+                      ],
+                      "example": "add"
+                    },
+                    "time": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2025-01-15T10:30:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "CollaborationInput": {
+        "type": "object",
+        "required": [
+          "playlistId",
+          "userId"
+        ],
+        "properties": {
+          "playlistId": {
+            "type": "string",
+            "description": "ID playlist",
+            "example": "playlist-123"
+          },
+          "userId": {
+            "type": "string",
+            "description": "ID pengguna yang akan dijadikan kolaborator",
+            "example": "user-456"
+          }
+        }
+      },
+      "CollaborationCreateResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "collaborationId": {
+                "type": "string",
+                "description": "ID kolaborasi yang baru dibuat",
+                "example": "collab-123"
+              }
+            }
+          }
+        }
+      },
+      "ExportInput": {
+        "type": "object",
+        "required": [
+          "targetEmail"
+        ],
+        "properties": {
+          "targetEmail": {
+            "type": "string",
+            "format": "email",
+            "description": "Email tujuan untuk export playlist",
+            "example": "user@example.com"
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "message": {
+            "type": "string",
+            "example": "Operasi berhasil dilakukan"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "fail"
+          },
+          "message": {
+            "type": "string",
+            "example": "Terjadi kesalahan pada server"
+          }
+        }
+      }
+    },
+    "examples": {
+      "AlbumExample": {
+        "summary": "Contoh album",
+        "value": {
+          "name": "Viva la vida",
+          "year": 2008
+        }
+      },
+      "SongExample": {
+        "summary": "Contoh lagu",
+        "value": {
+          "title": "Viva la vida",
+          "year": 2008,
+          "performer": "Coldplay",
+          "genre": "Alternative Rock",
+          "duration": 242,
+          "albumId": "album-123"
+        }
+      },
+      "UserExample": {
+        "summary": "Contoh pengguna",
+        "value": {
+          "username": "johndoe",
+          "password": "secret123",
+          "fullname": "John Doe"
+        }
+      },
+      "LoginExample": {
+        "summary": "Contoh login",
+        "value": {
+          "username": "johndoe",
+          "password": "secret123"
+        }
+      }
+    },
+    "responses": {
+      "UnauthorizedError": {
+        "description": "Token tidak valid atau tidak ada",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "fail",
+              "message": "Missing authentication"
+            }
+          }
+        }
+      },
+      "ForbiddenError": {
+        "description": "Tidak memiliki akses ke resource",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "fail",
+              "message": "Anda tidak berhak mengakses resource ini"
+            }
+          }
+        }
+      },
+      "NotFoundError": {
+        "description": "Resource tidak ditemukan",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "fail",
+              "message": "Resource tidak ditemukan"
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Payload tidak valid",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "fail",
+              "message": "Payload tidak memenuhi kriteria"
+            }
+          }
+        }
+      }
+    },
+    "headers": {
+      "X-Data-Source": {
+        "description": "Sumber data response (cache atau database)",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "cache",
+            "database"
+          ]
+        },
+        "example": "cache"
+      },
+      "X-RateLimit-Limit": {
+        "description": "Batas maksimal request per window",
+        "schema": {
+          "type": "integer"
+        },
+        "example": 100
+      },
+      "X-RateLimit-Remaining": {
+        "description": "Sisa request yang dapat dilakukan",
+        "schema": {
+          "type": "integer"
+        },
+        "example": 95
+      },
+      "X-RateLimit-Reset": {
+        "description": "Waktu reset rate limit (Unix timestamp)",
+        "schema": {
+          "type": "integer"
+        },
+        "example": 1642694400
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "externalDocs": {
+    "description": "Dokumentasi lengkap OpenMusic API",
+    "url": "https://docs.openmusic.com"
+  }
+}
