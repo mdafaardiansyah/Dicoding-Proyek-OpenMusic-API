@@ -70,7 +70,17 @@ class AlbumsHandler {
 
     try {
       const result = await this._cacheService.get(cacheKey);
-      const album = JSON.parse(result);
+      let album = JSON.parse(result);
+      
+      // Generate cover URL jika ada cover dan menggunakan MinIO
+      if (album.cover && config.storage.type === 'minio') {
+        try {
+          album.cover = await this._storageService.getFileUrl(album.cover);
+        } catch (error) {
+          console.warn('[Albums] Failed to generate cover URL from cache:', error.message);
+          album.cover = null;
+        }
+      }
 
       const response = h.response({
         status: 'success',
@@ -84,12 +94,31 @@ class AlbumsHandler {
       // Ambil data album dari database
       const album = await this._service.getAlbumById(id);
 
+      // Generate cover URL jika ada cover dan menggunakan MinIO
+      if (album.cover && config.storage.type === 'minio') {
+        try {
+          album.cover = await this._storageService.getFileUrl(album.cover);
+        } catch (error) {
+          console.warn('[Albums] Failed to generate cover URL:', error.message);
+          album.cover = null;
+        }
+      }
+
       // Ambil songs yang ada dalam album
       const songs = await this._songsService.getSongsByAlbumId(id);
 
       // Tambahkan songs ke dalam album
       album.songs = songs;
-      await this._cacheService.set(cacheKey, JSON.stringify(album), 1800); // 30 minutes
+      
+      // Cache album dengan cover URL yang sudah di-generate (untuk local storage)
+      // Untuk MinIO, kita cache tanpa URL karena presigned URL akan expire
+      const albumToCache = { ...album };
+      if (config.storage.type === 'minio' && albumToCache.cover) {
+        // Simpan object name asli di cache, bukan presigned URL
+        const originalCover = await this._service.getAlbumById(id);
+        albumToCache.cover = originalCover.cover;
+      }
+      await this._cacheService.set(cacheKey, JSON.stringify(albumToCache), 1800); // 30 minutes
 
       const response = h.response({
         status: 'success',
@@ -113,22 +142,34 @@ class AlbumsHandler {
       const { cover } = request.payload;
       const { id } = request.params;
 
-      console.log('Upload request received for album:', id);
-      console.log('Cover object:', cover);
-      console.log('Cover hapi headers:', cover.hapi.headers);
+      console.log('[Albums] Upload request received for album:', id);
+      console.log('[Albums] Cover object:', cover);
+      console.log('[Albums] Cover hapi headers:', cover.hapi.headers);
 
       // Validasi MIME type
       this._validator.validateImageHeaders(cover.hapi.headers);
 
       // Validasi ukuran file - gunakan Buffer.byteLength atau cover._data.length
       const fileSize = Buffer.isBuffer(cover._data) ? cover._data.length : Buffer.byteLength(cover._data);
-      console.log('File size:', fileSize);
+      console.log('[Albums] File size:', fileSize);
       this._validator.validateImagePayload({ size: fileSize });
 
+      // Upload file menggunakan unified storage service
       const filename = await this._storageService.writeFile(cover, cover.hapi);
-      const coverUrl = `http://${config.app.host}:${config.app.port}/uploads/${filename}`;
+      console.log('[Albums] File uploaded with filename:', filename);
+      
+      // Generate URL berdasarkan storage type
+      let coverUrl;
+      if (config.storage.type === 'minio') {
+        // Untuk MinIO, simpan path relatif dan generate presigned URL saat dibutuhkan
+        coverUrl = filename; // Simpan object name saja
+      } else {
+        // Untuk local storage, gunakan URL lengkap
+        coverUrl = `http://${config.app.host}:${config.app.port}/uploads/${filename}`;
+      }
 
       await this._service.addAlbumCover(id, coverUrl);
+      console.log('[Albums] Album cover updated successfully');
 
       const response = h.response({
         status: 'success',
@@ -137,7 +178,7 @@ class AlbumsHandler {
       response.code(201);
       return response;
     } catch (error) {
-      console.error('Error in postUploadImageHandler:', error);
+      console.error('[Albums] Error in postUploadImageHandler:', error);
 
       // Handle storage errors
       if (error.message.includes('Ukuran file melebihi') ||
