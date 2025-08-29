@@ -1,0 +1,5 @@
+This is a test file for MinIO upload testing.
+It simulates an image file for album cover upload.
+Content: Test Album Cover Image Data
+Timestamp: 2024-01-20
+Size: Small test file
