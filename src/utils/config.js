@@ -21,6 +21,17 @@ const config = {
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     region: process.env.AWS_REGION,
   },
+  minio: {
+    endpoint: process.env.MINIO_ENDPOINT,
+    accessKey: process.env.MINIO_ACCESS_KEY,
+    secretKey: process.env.MINIO_SECRET_KEY,
+    bucketName: process.env.MINIO_BUCKET_NAME,
+    region: process.env.MINIO_REGION || 'us-east-1',
+    useSSL: process.env.MINIO_USE_SSL === 'true',
+  },
+  storage: {
+    type: process.env.STORAGE_TYPE || 'local', // 'local', 's3', or 'minio'
+  },
   rabbitMq: {
     server: process.env.RABBITMQ_SERVER,
   },
