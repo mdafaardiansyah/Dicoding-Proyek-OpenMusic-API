@@ -20,7 +20,7 @@ const UsersService = require('./services/UsersService');
 const AuthenticationsService = require('./services/AuthenticationsService');
 const PlaylistsService = require('./services/PlaylistsService');
 const CollaborationsService = require('./services/CollaborationsService');
-const StorageService = require('./services/storage/StorageService');
+const UnifiedStorageService = require('./services/storage/UnifiedStorageService');
 const CacheService = require('./services/redis/CacheService');
 const ExportsService = require('./services/ExportsService');
 
@@ -62,7 +62,7 @@ const init = async () => {
   const authenticationsService = new AuthenticationsService();
   const collaborationsService = new CollaborationsService(usersService);
   const playlistsService = new PlaylistsService(collaborationsService, songsService);
-  const storageService = new StorageService(path.resolve(__dirname, 'api/albums/file/images'));
+  const storageService = new UnifiedStorageService();
   const exportsService = new ExportsService();
 
   // Konfigurasi server Hapi.js
