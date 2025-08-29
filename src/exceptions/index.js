@@ -7,6 +7,8 @@ const NotFoundError = require('./NotFoundError');
 const InvariantError = require('./InvariantError');
 const AuthenticationError = require('./AuthenticationError');
 const AuthorizationError = require('./AuthorizationError');
+const StorageError = require('./StorageError');
+const MinIOError = require('./MinIOError');
 
 module.exports = {
   ClientError,
@@ -14,4 +16,6 @@ module.exports = {
   InvariantError,
   AuthenticationError,
   AuthorizationError,
+  StorageError,
+  MinIOError,
 };
