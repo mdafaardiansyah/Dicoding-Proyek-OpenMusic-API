@@ -11,14 +11,14 @@ Versi 3 dari OpenMusic API menghadirkan peningkatan performa dan fitur-fitur ent
 - **Album Cover Upload**: Upload dan manajemen cover album dengan validasi
 - **Album Likes System**: Fitur like/unlike album dengan tracking
 - **Playlist Export**: Export playlist ke format JSON via message queue
-- **File Storage**: Local file storage dengan validasi ukuran dan tipe
+- **File Storage**: Multi-storage support (Local, AWS S3, MinIO) dengan validasi ukuran dan tipe
 - **Message Queue**: RabbitMQ integration untuk background processing
 - **Code Quality**: ESLint integration untuk standarisasi kode
 - **Enhanced Configuration**: Centralized config management
 
 ### 🔄 Perubahan dari V2
 - **Performance**: Redis caching mengurangi database load hingga 80%
-- **Storage**: File upload system dengan validasi keamanan
+- **Storage**: Multi-storage file upload system (Local/S3/MinIO) dengan validasi keamanan
 - **Scalability**: Message queue untuk operasi asynchronous
 - **Code Quality**: ESLint rules untuk konsistensi kode
 - **Database Schema**: 1 tabel baru (user_album_likes) dan kolom cover di albums
@@ -75,9 +75,10 @@ Versi 3 dari OpenMusic API menghadirkan peningkatan performa dan fitur-fitur ent
 ### 📁 File Management (V3)
 - **Album Cover Upload**: Upload cover image untuk album
 - **File Validation**: Validasi tipe file (JPEG, PNG) dan ukuran maksimal
-- **Local Storage**: Penyimpanan file lokal dengan struktur folder terorganisir
+- **Multi-Storage Support**: Local storage, AWS S3, dan MinIO object storage
+- **Storage Configuration**: Configurable storage backend via environment variables
 - **Image Processing**: Automatic file naming dan path management
-- **Storage Security**: Validasi keamanan file upload
+- **Storage Security**: Validasi keamanan file upload dengan multiple storage backends
 
 ### ❤️ Social Features (V3)
 - **Album Likes**: Sistem like/unlike untuk album
@@ -117,7 +118,8 @@ Versi 3 dari OpenMusic API menghadirkan peningkatan performa dan fitur-fitur ent
 - **File Upload**: @hapi/inert, multer for file handling
 - **Code Quality**: ESLint for code linting and formatting
 - **Configuration**: Centralized config management
-- **Storage**: Local file system with organized structure
+- **Storage**: Multi-storage support (Local, AWS S3, MinIO) with organized structure
+- **Cloud Storage**: AWS SDK for S3 and MinIO object storage integration
 - **Performance**: Cache optimization and monitoring
 
 ## Related Services
@@ -244,16 +246,37 @@ Berikut adalah layanan-layanan yang mengonsumsi OpenMusic API:
    sudo rabbitmq-plugins enable rabbitmq_management
    ```
 
-6. **Configure environment**
+6. **Setup MinIO (V3 - Optional)** 🆕
+   ```bash
+   # Using Docker (Recommended)
+   docker run -d \
+     --name minio \
+     -p 9000:9000 \
+     -p 9001:9001 \
+     -e MINIO_ROOT_USER=minioadmin \
+     -e MINIO_ROOT_PASSWORD=minioadmin \
+     -v minio_data:/data \
+     minio/minio server /data --console-address ":9001"
+   
+   # Create bucket (after MinIO is running)
+   # Access MinIO Console at http://localhost:9001
+   # Login with minioadmin/minioadmin
+   # Create bucket named 'openmusic'
+   ```
+
+7. **Configure environment**
    - Copy `.env.example` ke `.env`
    - Sesuaikan konfigurasi database, JWT secrets, Redis, RabbitMQ, dan email
+   - **Storage Configuration**: Set `STORAGE_TYPE` to `local`, `s3`, or `minio`
+   - **For MinIO**: Configure `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET_NAME`
+   - **For AWS S3**: Configure `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET_NAME`, `AWS_REGION`
 
-7. **Create uploads directory (V3)** 🆕
+8. **Create uploads directory (V3 - Local Storage Only)** 🆕
    ```bash
    mkdir uploads
    ```
 
-8. **Start server**
+9. **Start server**
    ```bash
    # Development
    npm run start:dev
@@ -314,9 +337,76 @@ MAIL_PORT=465
 MAIL_USERNAME=your_email@gmail.com
 MAIL_PASSWORD=your_app_password
 
+# Storage Configuration (V3)
+# Supported types: 'local', 's3', 'minio'
+STORAGE_TYPE=local
+
+# AWS S3 Configuration (V3)
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_BUCKET_NAME=your_s3_bucket
+AWS_REGION=us-east-1
+
+# MinIO Configuration (V3)
+MINIO_ENDPOINT=localhost:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET_NAME=openmusic
+MINIO_REGION=us-east-1
+MINIO_USE_SSL=false
+
 # Node Environment
 NODE_ENV=development
 ```
+
+## Storage Configuration (V3)
+
+OpenMusic API V3 mendukung tiga jenis storage backend untuk menyimpan file cover album:
+
+### 🏠 Local Storage (Default)
+```env
+STORAGE_TYPE=local
+```
+- File disimpan di direktori `uploads/covers/` lokal
+- Tidak memerlukan konfigurasi tambahan
+- Cocok untuk development dan testing
+- Perlu membuat direktori `uploads` secara manual
+
+### ☁️ AWS S3 Storage
+```env
+STORAGE_TYPE=s3
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_BUCKET_NAME=your_s3_bucket
+AWS_REGION=us-east-1
+```
+- File disimpan di AWS S3 bucket
+- Memerlukan AWS credentials yang valid
+- Bucket harus sudah dibuat sebelumnya
+- Cocok untuk production dengan high availability
+
+### 🗄️ MinIO Storage
+```env
+STORAGE_TYPE=minio
+MINIO_ENDPOINT=localhost:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET_NAME=openmusic
+MINIO_REGION=us-east-1
+MINIO_USE_SSL=false
+```
+- File disimpan di MinIO object storage
+- Compatible dengan S3 API
+- Dapat dijalankan secara self-hosted
+- Cocok untuk production dengan kontrol penuh
+- Bucket akan dibuat otomatis jika belum ada
+
+### 🔄 Switching Storage Backend
+Untuk mengganti storage backend:
+1. Update `STORAGE_TYPE` di file `.env`
+2. Konfigurasi environment variables sesuai storage yang dipilih
+3. Restart server
+4. File yang sudah ada tidak akan dipindahkan otomatis
 
 ## Database Schema
 
