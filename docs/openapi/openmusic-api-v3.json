@@ -6,7 +6,7 @@
     "version": "3.0.0",
     "contact": {
       "name": "OpenMusic API Support",
-      "email": "support@openmusic.com"
+      "email": "ardidafa21@gmail.com"
     },
     "license": {
       "name": "MIT",
@@ -19,7 +19,7 @@
       "description": "Development server"
     },
     {
-      "url": "https://api.openmusic.com",
+      "url": "https://api-openmusic.glanze.space",
       "description": "Production server"
     }
   ],
@@ -2461,6 +2461,6 @@
   ],
   "externalDocs": {
     "description": "Dokumentasi lengkap OpenMusic API",
-    "url": "https://docs.openmusic.com"
+    "url": "https://github.com/mdafaardiansyah/Dicoding-Proyek-OpenMusic-API"
   }
 }
