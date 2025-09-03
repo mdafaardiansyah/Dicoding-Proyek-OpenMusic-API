@@ -1,6 +1,6 @@
 # OpenMusic API (V3)
 
-OpenMusic API adalah RESTful API untuk mengelola data musik yang dibangun menggunakan Node.js dan Hapi.js framework. API ini menyediakan fitur lengkap untuk mengelola album, lagu, user authentication, playlist, kolaborasi, caching, exports, dan uploads dengan operasi CRUD lengkap. API ini merupakan Submission ke-3 dari Kelas Belajar Fundamental Back-End dengan JavaScript di Dicoding.
+OpenMusic API adalah RESTful API untuk mengelola data musik yang dibangun menggunakan Node.js dan Hapi.js framework. API ini menyediakan fitur lengkap untuk mengelola album, lagu, user authentication, playlist, kolaborasi, caching, exports, dan uploads dengan operasi CRUD lengkap. **API ini merupakan Submission ke-3 dari Kelas Belajar Fundamental Back-End dengan JavaScript di Dicoding**
 
 ## 🚀 Apa yang Baru di V3?
 
