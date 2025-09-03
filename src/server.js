@@ -67,8 +67,8 @@ const init = async () => {
 
   // Konfigurasi server Hapi.js
   const server = Hapi.server({
-    port: process.env.PORT || config.app.port || 5000,
-    host: process.env.NODE_ENV !== 'production' ? 'localhost' : '0.0.0.0',
+    port: process.env.PORT || 5000,
+    host: '0.0.0.0',
     routes: {
       cors: {
         origin: ['*'],
@@ -398,7 +398,9 @@ const init = async () => {
 
   // Mulai server
   await server.start();
-  console.log(`Server berjalan pada ${server.info.uri}`);
+  console.log(`Server berjalan pada port ${server.info.port}`);
+  console.log(`Dengan host: ${server.info.host}`);
+  console.log(`URI: ${server.info.uri}`);
 };
 
 // Penanganan unhandled rejection
