@@ -25,21 +25,6 @@ Versi 3 dari OpenMusic API menghadirkan peningkatan performa dan fitur-fitur ent
 - **New Dependencies**: Redis, RabbitMQ, Multer untuk file handling
 - **Enhanced Error Handling**: Improved error responses dengan proper status codes
 
-## 📊 Perbandingan Versi
-
-| Fitur | V1 | V2 | V3 |
-|-------|----|----|----|
-| Albums & Songs CRUD | ✅ | ✅ | ✅ |
-| User Authentication | ❌ | ✅ | ✅ |
-| Playlist Management | ❌ | ✅ | ✅ |
-| Collaboration System | ❌ | ✅ | ✅ |
-| Server-Side Caching | ❌ | ❌ | ✅ |
-| File Upload | ❌ | ❌ | ✅ |
-| Album Likes | ❌ | ❌ | ✅ |
-| Playlist Export | ❌ | ❌ | ✅ |
-| Message Queue | ❌ | ❌ | ✅ |
-| Code Linting | ❌ | ❌ | ✅ |
-| Performance Optimization | ❌ | ❌ | ✅ |
 
 ## Fitur
 
@@ -93,11 +78,14 @@ Versi 3 dari OpenMusic API menghadirkan peningkatan performa dan fitur-fitur ent
 - **Export Status**: Tracking status export job
 - **Email Notification**: Notifikasi email setelah export selesai
 
-### 🔧 Code Quality (V3)
+### 🔧 Code Quality & Testing (V3)
 - **ESLint Integration**: Automated code linting dan formatting
 - **Code Standards**: Consistent coding style across project
 - **Error Prevention**: Static analysis untuk mencegah bugs
 - **Development Workflow**: Pre-commit hooks untuk quality assurance
+- **End-to-End Testing**: Comprehensive testing dengan Playwright (V3.1) 🆕
+- **Test Coverage**: 56 test cases dengan cakupan 100% untuk semua fitur utama (V3.1) 🆕
+- **Test Reporting**: HTML reporting dan UI testing interface (V3.1) 🆕
 
 ## Tech Stack
 
@@ -112,7 +100,7 @@ Versi 3 dari OpenMusic API menghadirkan peningkatan performa dan fitur-fitur ent
 - **Environment**: dotenv
 - **Token Management**: JWT (JSON Web Tokens)
 
-### V3 New Technologies
+### V3.0 New Technologies
 - **Caching**: Redis for server-side caching
 - **Message Queue**: RabbitMQ (amqplib) for background processing
 - **File Upload**: @hapi/inert, multer for file handling
@@ -121,6 +109,12 @@ Versi 3 dari OpenMusic API menghadirkan peningkatan performa dan fitur-fitur ent
 - **Storage**: Multi-storage support (Local, AWS S3, MinIO) with organized structure
 - **Cloud Storage**: AWS SDK for S3 and MinIO object storage integration
 - **Performance**: Cache optimization and monitoring
+
+### V3.1 New Technologies 🆕
+- **End-to-End Testing**: Playwright for comprehensive automated testing
+- **Test Reporting**: HTML reporting dan UI testing interface
+- **Test Utilities**: Helper functions for testing authentication, albums, songs, playlists
+- **Test Coverage**: Comprehensive test coverage for all API endpoints
 
 ## Related Services
 
@@ -663,6 +657,15 @@ node test-v2-features.js
 
 # Run linting
 npm run lint
+
+# Run end-to-end tests with Playwright (V3.1) 🆕
+npx playwright test
+
+# Run end-to-end tests with UI mode (V3.1) 🆕
+npx playwright test --ui
+
+# Generate HTML test report (V3.1) 🆕
+npx playwright test --reporter=html
 ```
 
 ### Database Migration Commands
@@ -927,6 +930,50 @@ docs/postman/v3/
     ├── picture-large.jpg                            # Test file besar (>500KB)
     ├── picture-small.jpg                            # Test file kecil (<500KB)
     └── text-small.txt                               # Test invalid file type
+```
+
+## Testing dengan Playwright (V3.1) 🆕
+
+### Gambaran Umum
+OpenMusic API V3.1 dilengkapi dengan pengujian end-to-end menggunakan Playwright, sebuah framework testing modern yang memungkinkan pengujian otomatis yang komprehensif terhadap API.
+
+### Cakupan Pengujian
+Pengujian end-to-end mencakup total 56 test case dengan cakupan 100% untuk semua fitur utama:
+
+| Kategori | Test Case | Cakupan |
+|----------|-----------|--------|
+| Authentication | 8 | 100% |
+| Albums | 12 | 100% |
+| Songs | 8 | 100% |
+| Playlists | 16 | 100% |
+| Exports | 6 | 100% |
+| Caching | 6 | 100% |
+
+### Struktur File Pengujian
+File pengujian terorganisir dalam direktori `/tests/e2e/` dengan struktur berikut:
+- `auth.spec.js` - Pengujian autentikasi (register, login, refresh token)
+- `album.spec.js` - Pengujian album (CRUD, upload cover, like/unlike)
+- `song.spec.js` - Pengujian lagu (CRUD, search)
+- `playlist.spec.js` - Pengujian playlist (CRUD, add/remove songs, collaborations)
+- `export.spec.js` - Pengujian ekspor playlist ke email
+- `cache.spec.js` - Pengujian caching dan performa
+- `utils/` - Helper functions untuk pengujian
+
+### Cara Menjalankan Pengujian
+```bash
+# Menjalankan semua pengujian end-to-end
+npx playwright test
+
+# Menjalankan pengujian dengan UI mode (interaktif)
+npx playwright test --ui
+
+# Menghasilkan laporan HTML
+npx playwright test --reporter=html
+```
+
+Setelah menjalankan pengujian dengan reporter HTML, Anda dapat melihat laporan detail dengan menjalankan:
+```bash
+npx playwright show-report
 ```
 
 #### Import Collection & Environment
@@ -1259,7 +1306,13 @@ Dokumentasi OpenAPI ini:
 
 ## Changelog
 
-### V3.0.0 (Latest) 🆕
+### V3.1.0 (Latest) 🆕
+- 🧪 Implementasi pengujian end-to-end dengan Playwright
+- 📊 Penambahan 56 test case dengan cakupan 100% untuk semua fitur utama
+- 🔄 Peningkatan alur kerja pengujian dengan mode UI dan HTML reporting
+- 📚 Dokumentasi komprehensif untuk pengujian end-to-end
+
+### V3.0.0
 - ⚡ Added Redis caching untuk semua GET endpoints
 - 📁 Added album cover upload functionality
 - ❤️ Added album likes system
