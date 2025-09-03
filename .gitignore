@@ -162,3 +162,7 @@ docker-compose*.yml
 
 # Vite
 .vite
+
+
+#Front-end
+fe/
