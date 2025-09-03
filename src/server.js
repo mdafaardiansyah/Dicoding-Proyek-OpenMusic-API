@@ -67,7 +67,7 @@ const init = async () => {
 
   // Konfigurasi server Hapi.js
   const server = Hapi.server({
-    port: config.app.port || 5000,
+    port: process.env.PORT || config.app.port || 5000,
     host: process.env.NODE_ENV !== 'production' ? 'localhost' : '0.0.0.0',
     routes: {
       cors: {
