@@ -16,16 +16,6 @@ Versi 3 dari OpenMusic API menghadirkan peningkatan performa dan fitur-fitur ent
 - **Code Quality**: ESLint integration untuk standarisasi kode
 - **Enhanced Configuration**: Centralized config management
 
-### 🔄 Perubahan dari V2
-- **Performance**: Redis caching mengurangi database load hingga 80%
-- **Storage**: Multi-storage file upload system (Local/S3/MinIO) dengan validasi keamanan
-- **Scalability**: Message queue untuk operasi asynchronous
-- **Code Quality**: ESLint rules untuk konsistensi kode
-- **Database Schema**: 1 tabel baru (user_album_likes) dan kolom cover di albums
-- **New Dependencies**: Redis, RabbitMQ, Multer untuk file handling
-- **Enhanced Error Handling**: Improved error responses dengan proper status codes
-
-
 ## Fitur
 
 ### 🎵 Core Features (V1)
